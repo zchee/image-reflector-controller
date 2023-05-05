@@ -36,7 +36,8 @@ In the above example:
   are then used to select the latest tag based on the policy defined in
   `.spec.policy`.
 - The latest image is constructed with the ImageRepository image and the
-  selected tag, and reported in the `.status.latestImage`.
+  selected tag, and reported in the `.status.latestImage` field.
+- The selected tag's digest is reported in the `.status.latestDigest` field.
 
 This example can be run by saving the manifest into `imagepolicy.yaml`.
 
@@ -65,6 +66,7 @@ Status:
     Reason:                Succeeded
     Status:                True
     Type:                  Ready
+  Latest Digest:           sha256:2d9a00b3981628a533ff43352193b1838b0a4bf6b0033444286f563205e51a2c
   Latest Image:            ghcr.io/stefanprodan/podinfo:5.1.4
   Observed Generation:     1
 Events:
@@ -331,7 +333,7 @@ specific ImagePolicy, e.g.
 
 ### Latest Image
 
-The ImagePolicy reports the latest select image from the ImageRepository tags in
+The ImagePolicy reports the latest selected image from the ImageRepository tags in
 `.status.latestImage` for the resource.
 
 Example:
@@ -344,7 +346,39 @@ metadata:
   name: <policy-name>
 status:
   latestImage: ghcr.io/stefanprodan/podinfo:5.1.4
+[...]
 ```
+
+### Latest Digest
+
+The ImagePolicy reports the digest value of the latest selected image from the ImageRepoistory tags
+in `.status.latestDigest` for the resource. Image digests are an immutable reference to a certain image
+and allow for a stricter policy to be applied in comparison to tags which are mutable.
+
+Example:
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: <policy-name>
+status:
+  latestDigest: sha256:2d9a00b3981628a533ff43352193b1838b0a4bf6b0033444286f563205e51a2c
+[...]
+```
+
+{{% alert color="warning" %}}
+:warning: Note that image-reflector-controller will not update the digest in case the tag is mutated to point to a
+different image version. If you really need to update the latest digest, set the field to an empty value and trigger
+another reconciliation:
+
+```sh
+$ k patch imagepolicy podinfo --subresource=status --type=merge -p '{"status":{"latestDigest": null}}'
+imagepolicy.image.toolkit.fluxcd.io/podinfo patched
+$ flux reconcile image repository -n default podinfo
+```
+{{% /alert %}}
 
 ### Observed Previous Image
 

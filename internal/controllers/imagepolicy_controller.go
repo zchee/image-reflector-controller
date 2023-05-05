@@ -20,9 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,6 +51,7 @@ import (
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/policy"
+	"github.com/fluxcd/image-reflector-controller/internal/registry"
 )
 
 // errAccessDenied is returned when an ImageRepository reference in ImagePolicy
@@ -110,6 +113,7 @@ type ImagePolicyReconciler struct {
 	ControllerName string
 	Database       DatabaseReader
 	ACLOptions     acl.Options
+	RegistryHelper registry.AuthHelper
 
 	patchOptions []patch.Option
 }
@@ -327,6 +331,15 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	if oldObj.Status.LatestImage != obj.Status.LatestImage {
 		obj.Status.ObservedPreviousImage = oldObj.Status.LatestImage
 	}
+
+	// update the digest only when the tag changed or when the digest hasn't been set, yet (or has been reset manually)
+	if oldObj.Status.LatestImage != obj.Status.LatestImage || oldObj.Status.LatestDigest == "" {
+		obj.Status.LatestDigest, err = r.fetchDigest(ctx, repo, latest, obj)
+		if err != nil {
+			result, retErr = ctrl.Result{}, fmt.Errorf("failed fetching digest of %s: %w", obj.Status.LatestImage, err)
+			return
+		}
+	}
 	// Parse the observed previous image if any and extract previous tag. This
 	// is used to determine image tag update path.
 	if obj.Status.ObservedPreviousImage != "" {
@@ -346,6 +359,23 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 
 	result, retErr = ctrl.Result{}, nil
 	return
+}
+
+func (r *ImagePolicyReconciler) fetchDigest(ctx context.Context, repo *imagev1.ImageRepository, latest string, obj *imagev1.ImagePolicy) (string, error) {
+	ref := strings.Join([]string{repo.Spec.Image, latest}, ":")
+	tagRef, err := name.ParseReference(ref)
+	if err != nil {
+		return "", fmt.Errorf("failed parsing reference %q: %w", ref, err)
+	}
+	opts, err := r.RegistryHelper.GetAuthOptions(ctx, *repo)
+	if err != nil {
+		return "", fmt.Errorf("failed to configure authentication options: %w", err)
+	}
+	desc, err := remote.Head(tagRef, opts...)
+	if err != nil {
+		return "", fmt.Errorf("failed fetching descriptor for %q: %w", tagRef.String(), err)
+	}
+	return desc.Digest.String(), nil
 }
 
 // getImageRepository tries to fetch an ImageRepository referenced by the given

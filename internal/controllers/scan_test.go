@@ -367,7 +367,7 @@ func TestImageRepositoryReconciler_imageAttribute_schemePrefix(t *testing.T) {
 		ready = apimeta.FindStatusCondition(repo.GetConditions(), meta.ReadyCondition)
 		return ready != nil && ready.Reason == imagev1.ImageURLInvalidReason
 	}, timeout, interval).Should(BeTrue())
-	g.Expect(ready.Message).To(ContainSubstring("should not start with URL scheme"))
+	g.Expect(ready.Message).To(ContainSubstring("the image name must not include a URL scheme"))
 
 	// Check if the object status is valid.
 	condns := &conditionscheck.Conditions{NegativePolarity: imageRepositoryNegativeConditions}
@@ -412,7 +412,7 @@ func TestImageRepositoryReconciler_imageAttribute_withTag(t *testing.T) {
 		ready = apimeta.FindStatusCondition(repo.GetConditions(), meta.ReadyCondition)
 		return ready != nil && ready.Reason == imagev1.ImageURLInvalidReason
 	}, timeout, interval).Should(BeTrue())
-	g.Expect(ready.Message).To(ContainSubstring("should not contain a tag"))
+	g.Expect(ready.Message).To(ContainSubstring("the image name must not contain a tag"))
 
 	// Check if the object status is valid.
 	condns := &conditionscheck.Conditions{NegativePolarity: imageRepositoryNegativeConditions}

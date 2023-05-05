@@ -49,6 +49,7 @@ import (
 	"github.com/fluxcd/image-reflector-controller/internal/controllers"
 	"github.com/fluxcd/image-reflector-controller/internal/database"
 	"github.com/fluxcd/image-reflector-controller/internal/features"
+	"github.com/fluxcd/image-reflector-controller/internal/registry"
 )
 
 const controllerName = "image-reflector-controller"
@@ -196,17 +197,20 @@ func main() {
 
 	metricsH := helper.MustMakeMetrics(mgr)
 
+	deprecatedLoginOptions := login.ProviderOptions{
+		AwsAutoLogin:   awsAutoLogin,
+		AzureAutoLogin: azureAutoLogin,
+		GcpAutoLogin:   gcpAutoLogin,
+	}
+	registryHelper := registry.NewDefaultHelper(mgr.GetClient(), deprecatedLoginOptions)
+
 	if err := (&controllers.ImageRepositoryReconciler{
 		Client:         mgr.GetClient(),
 		EventRecorder:  eventRecorder,
 		Metrics:        metricsH,
 		Database:       db,
 		ControllerName: controllerName,
-		DeprecatedLoginOpts: login.ProviderOptions{
-			AwsAutoLogin:   awsAutoLogin,
-			AzureAutoLogin: azureAutoLogin,
-			GcpAutoLogin:   gcpAutoLogin,
-		},
+		RegistryHelper: registryHelper,
 	}).SetupWithManager(mgr, controllers.ImageRepositoryReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
 		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),
@@ -221,6 +225,7 @@ func main() {
 		Database:       db,
 		ACLOptions:     aclOptions,
 		ControllerName: controllerName,
+		RegistryHelper: registryHelper,
 	}).SetupWithManager(mgr, controllers.ImagePolicyReconcilerOptions{
 		MaxConcurrentReconciles: concurrent,
 		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),

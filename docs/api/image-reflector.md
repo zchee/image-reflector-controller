@@ -313,6 +313,19 @@ the policy.</p>
 </tr>
 <tr>
 <td>
+<code>latestDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LatestDigest is the digest of the latest image stored in the
+accompanying LatestImage field.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>observedPreviousImage</code><br>
 <em>
 string

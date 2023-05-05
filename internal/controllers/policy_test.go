@@ -219,9 +219,12 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 			if !tt.wantFailure {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
-					return err == nil && pol.Status.LatestImage != ""
+					return err == nil &&
+						pol.Status.LatestImage != "" &&
+						pol.Status.LatestDigest != ""
 				}, timeout, interval).Should(BeTrue())
 				g.Expect(pol.Status.LatestImage).To(Equal(imgRepo + tt.wantImageTag))
+				g.Expect(pol.Status.LatestDigest).To(MatchRegexp("^sha256:[a-z0-9]{64}"))
 			} else {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)

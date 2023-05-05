@@ -30,11 +30,13 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/fluxcd/pkg/oci/auth/login"
 	"github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/testenv"
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/database"
+	"github.com/fluxcd/image-reflector-controller/internal/registry"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -81,10 +83,13 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("Failed to create new Badger database: %v", err))
 	}
 
+	regHelper := registry.NewDefaultHelper(testEnv, login.ProviderOptions{})
+
 	if err = (&ImageRepositoryReconciler{
-		Client:        testEnv,
-		Database:      database.NewBadgerDatabase(testBadgerDB),
-		EventRecorder: record.NewFakeRecorder(256),
+		Client:         testEnv,
+		Database:       database.NewBadgerDatabase(testBadgerDB),
+		EventRecorder:  record.NewFakeRecorder(256),
+		RegistryHelper: regHelper,
 	}).SetupWithManager(testEnv, ImageRepositoryReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {
@@ -92,9 +97,10 @@ func TestMain(m *testing.M) {
 	}
 
 	if err = (&ImagePolicyReconciler{
-		Client:        testEnv,
-		Database:      database.NewBadgerDatabase(testBadgerDB),
-		EventRecorder: record.NewFakeRecorder(256),
+		Client:         testEnv,
+		Database:       database.NewBadgerDatabase(testBadgerDB),
+		EventRecorder:  record.NewFakeRecorder(256),
+		RegistryHelper: regHelper,
 	}).SetupWithManager(testEnv, ImagePolicyReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {

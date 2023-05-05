@@ -105,6 +105,10 @@ type ImagePolicyStatus struct {
 	// the image repository, when filtered and ordered according to
 	// the policy.
 	LatestImage string `json:"latestImage,omitempty"`
+	// LatestDigest is the digest of the latest image stored in the
+	// accompanying LatestImage field.
+	// +optional
+	LatestDigest string `json:"latestDigest,omitempty"`
 	// ObservedPreviousImage is the observed previous LatestImage. It is used
 	// to keep track of the previous and current images.
 	// +optional
