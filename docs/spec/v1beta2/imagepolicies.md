@@ -38,7 +38,8 @@ In the above example:
   are then used to select the latest tag based on the policy defined in
   `.spec.policy`.
 - The latest image is constructed with the ImageRepository image and the
-  selected tag, and reported in the `.status.latestImage`.
+  selected tag, and reported in the `.status.latestImage` field.
+- The selected tag's digest is reported in the `.status.latestDigest` field.
 
 This example can be run by saving the manifest into `imagepolicy.yaml`.
 
@@ -67,6 +68,7 @@ Status:
     Reason:                Succeeded
     Status:                True
     Type:                  Ready
+  Latest Digest:           sha256:2d9a00b3981628a533ff43352193b1838b0a4bf6b0033444286f563205e51a2c
   Latest Image:            ghcr.io/stefanprodan/podinfo:5.1.4
   Observed Generation:     1
 Events:
@@ -250,6 +252,19 @@ spec:
 In the above example, the timestamp value from the tag pattern is extracted and
 used in the policy rule to determine the latest tag.
 
+### Digest Reflection
+
+`.spec.digestReflectionPolicy` is an optional field that governs the reflection of the selected image's
+digest in the ImagePolicy's `.status.latestDigest` field. The field has three possible values:
+
+- `null`: If the field is set to `null` (or not set at all) the digest will not be reflected at all.
+- `Always`: This value leads to the digest of the latest tag to always be reflected in `.status.
+  latestDigest`. An existing, potentially different digest will be overwritten with the most recent value 
+  retrieved from the image registry even if the tag didn't change. This may be useful to track mutable tags 
+  like `latest`.
+- `IfNotPresent`: This value will only store the digest of the latest tag once and never overwrite an 
+  existing value unless the tag has changed as well. This is the safest option to track immutable tags.
+
 ## Working with ImagePolicy
 
 ### Triggering a reconcile
@@ -333,7 +348,7 @@ specific ImagePolicy, e.g.
 
 ### Latest Image
 
-The ImagePolicy reports the latest select image from the ImageRepository tags in
+The ImagePolicy reports the latest selected image from the ImageRepository tags in
 `.status.latestImage` for the resource.
 
 Example:
@@ -346,6 +361,28 @@ metadata:
   name: <policy-name>
 status:
   latestImage: ghcr.io/stefanprodan/podinfo:5.1.4
+[...]
+```
+
+### Latest Digest
+
+Depending on the [chosen digest reflection policy](#digest-reflection) the 
+ImagePolicy may report the digest value of the latest selected image from the 
+ImageRepository tags in `.status.latestDigest` for the resource. Image digests 
+are an immutable reference to a certain image and allow for a stricter policy to 
+be applied in comparison to tags which are mutable.
+
+Example:
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: <policy-name>
+status:
+  latestDigest: sha256:2d9a00b3981628a533ff43352193b1838b0a4bf6b0033444286f563205e51a2c
+[...]
 ```
 
 ### Observed Previous Image

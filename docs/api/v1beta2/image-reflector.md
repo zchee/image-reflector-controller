@@ -131,6 +131,20 @@ rules. If no rules are provided, all the tags from the repository will be
 ordered and compared.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>digestReflectionPolicy</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1beta2.ReflectionPolicy">
+ReflectionPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReflectDigest governs the setting of the <code>.status.latestDigest</code> field.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -277,6 +291,20 @@ rules. If no rules are provided, all the tags from the repository will be
 ordered and compared.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>digestReflectionPolicy</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1beta2.ReflectionPolicy">
+ReflectionPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReflectDigest governs the setting of the <code>.status.latestDigest</code> field.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -309,6 +337,19 @@ string
 <p>LatestImage gives the first in the list of images scanned by
 the image repository, when filtered and ordered according to
 the policy.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>latestDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LatestDigest is the digest of the latest image stored in the
+accompanying LatestImage field.</p>
 </td>
 </tr>
 <tr>
@@ -872,6 +913,13 @@ would select 0.</p>
 </table>
 </div>
 </div>
+<h3 id="image.toolkit.fluxcd.io/v1beta2.ReflectionPolicy">ReflectionPolicy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1beta2.ImagePolicySpec">ImagePolicySpec</a>)
+</p>
+<p>ReflectionPolicy describes a policy for if/when to reflect a value from the registry in a certain resource field.</p>
 <h3 id="image.toolkit.fluxcd.io/v1beta2.ScanResult">ScanResult
 </h3>
 <p>

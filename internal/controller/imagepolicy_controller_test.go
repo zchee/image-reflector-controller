@@ -23,10 +23,15 @@ import (
 
 	aclapis "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/oci/auth/login"
 	"github.com/fluxcd/pkg/runtime/acl"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +39,8 @@ import (
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/policy"
+	"github.com/fluxcd/image-reflector-controller/internal/registry"
+	"github.com/fluxcd/image-reflector-controller/internal/test"
 )
 
 func TestImagePolicyReconciler_deleteBeforeFinalizer(t *testing.T) {
@@ -258,6 +265,260 @@ func TestImagePolicyReconciler_getImageRepository(t *testing.T) {
 			if err == nil {
 				g.Expect(repo.Name).To(Equal(tt.wantRepo))
 			}
+		})
+	}
+}
+
+func TestImagePolicyReconciler_digestReflection(t *testing.T) {
+	polAlways := imagev1.ReflectAlways
+	polIfNotPresent := imagev1.ReflectIfNotPresent
+
+	registryServer := test.NewRegistryServer()
+	defer registryServer.Close()
+
+	versions := []string{"v1.0.0", "v1.1.0", "v1.1.1", "v2.0.0"}
+	imgRepo, images1stPass, err := test.LoadImages(registryServer, "foo/bar", versions)
+	if err != nil {
+		t.Fatalf("could not load images into test registry: %s", err)
+	}
+
+	var images2ndPass map[string]v1.Hash
+
+	tests := []struct {
+		name                string
+		semVerPolicy2ndPass string
+		refPolicy1stPass    *imagev1.ReflectionPolicy
+		refPolicy2ndPass    *imagev1.ReflectionPolicy
+		digest1stPass       func() string
+		digest2ndPass       func() string
+	}{
+		{
+			name:             "nil/missing policy leaves digest empty",
+			refPolicy1stPass: nil,
+			digest1stPass: func() string {
+				return ""
+			},
+			digest2ndPass: func() string {
+				return ""
+			},
+		},
+		{
+			name:             "'Always' policy always updates digest",
+			refPolicy1stPass: &polAlways,
+			refPolicy2ndPass: &polAlways,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images2ndPass["v1.1.1"].String()
+			},
+		},
+		{
+			name:                "'IfNotPresent' policy updates digest when new tag is selected",
+			semVerPolicy2ndPass: "v2.x",
+			refPolicy1stPass:    &polIfNotPresent,
+			refPolicy2ndPass:    &polIfNotPresent,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images2ndPass["v2.0.0"].String()
+			},
+		},
+		{
+			name:             "'IfNotPresent' policy only sets digest once",
+			refPolicy1stPass: &polIfNotPresent,
+			refPolicy2ndPass: &polIfNotPresent,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+		},
+		{
+			name:             "unsetting 'Always' policy removes digest",
+			refPolicy1stPass: &polAlways,
+			refPolicy2ndPass: nil,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return ""
+			},
+		},
+		{
+			name:             "unsetting 'IfNotPresent' policy removes digest",
+			refPolicy1stPass: &polIfNotPresent,
+			refPolicy2ndPass: nil,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return ""
+			},
+		},
+		{
+			name:             "changing 'IfNotPresent' to 'Always' sets new digest",
+			refPolicy1stPass: &polIfNotPresent,
+			refPolicy2ndPass: &polAlways,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images2ndPass["v1.1.1"].String()
+			},
+		},
+		{
+			name:             "changing 'Always' to 'IfNotPresent' leaves digest untouched",
+			refPolicy1stPass: &polAlways,
+			refPolicy2ndPass: &polIfNotPresent,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			g := NewWithT(t)
+
+			// Create namespace where ImagePolicy exists.
+			ns := &corev1.Namespace{}
+			ns.Name = "digref-test"
+
+			// Create ImageRepository.
+			imageRepo := &imagev1.ImageRepository{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: ns.Name,
+					Name:      "digref-test",
+				},
+				Spec: imagev1.ImageRepositorySpec{
+					Image: imgRepo,
+				},
+				Status: imagev1.ImageRepositoryStatus{
+					LastScanResult: &imagev1.ScanResult{
+						TagCount:   len(versions),
+						LatestTags: versions,
+					},
+				},
+			}
+
+			imagePol := &imagev1.ImagePolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:  ns.Name,
+					Name:       "digref-test",
+					Finalizers: []string{imagev1.ImagePolicyFinalizer},
+				},
+				Spec: imagev1.ImagePolicySpec{
+					ImageRepositoryRef: meta.NamespacedObjectReference{
+						Name: imageRepo.Name,
+					},
+					DigestReflectionPolicy: tt.refPolicy1stPass,
+					Policy: imagev1.ImagePolicyChoice{
+						SemVer: &imagev1.SemVerPolicy{
+							Range: "v1.x",
+						},
+					},
+				},
+			}
+
+			s := runtime.NewScheme()
+			utilruntime.Must(imagev1.AddToScheme(s))
+			utilruntime.Must(corev1.AddToScheme(s))
+
+			c := fake.NewClientBuilder().
+				WithScheme(s).
+				WithObjects(ns, imageRepo, imagePol).
+				WithStatusSubresource(imagePol).
+				Build()
+
+			g.Expect(
+				c.Get(context.Background(), client.ObjectKeyFromObject(imageRepo), imageRepo),
+			).To(Succeed(), "failed getting image repo")
+
+			r := &ImagePolicyReconciler{
+				EventRecorder: record.NewFakeRecorder(32),
+				Client:        c,
+				Database:      &mockDatabase{TagData: imageRepo.Status.LastScanResult.LatestTags},
+				RegistryHelper: registry.NewDefaultHelper(c, login.ProviderOptions{
+					AwsAutoLogin:   false,
+					AzureAutoLogin: false,
+					GcpAutoLogin:   false,
+				}),
+			}
+
+			res, err := r.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: ns.Name,
+					Name:      imagePol.Name,
+				},
+			})
+
+			g.Expect(err).NotTo(HaveOccurred(), "reconciliation failed")
+			g.Expect(res).To(Equal(ctrl.Result{}))
+
+			g.Expect(
+				c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol),
+			).To(Succeed(), "failed getting image policy")
+
+			g.Expect(imagePol.Status.LatestDigest).
+				To(Equal(tt.digest1stPass()), "unexpected 1st pass digest in status")
+
+			// Now, change the policy (if the test desires it) and overwrite the existing latest tag with a new image
+
+			defer func() {
+				g.Expect(
+					c.Update(context.Background(), imagePol),
+				).To(Succeed(), "failed resetting image policy to original values")
+			}()
+
+			if tt.refPolicy1stPass != tt.refPolicy2ndPass {
+				defer func(p *imagev1.ReflectionPolicy) {
+					imagePol.Spec.DigestReflectionPolicy = p
+				}(imagePol.Spec.DigestReflectionPolicy)
+				imagePol.Spec.DigestReflectionPolicy = tt.refPolicy2ndPass
+			}
+			if tt.semVerPolicy2ndPass != "" {
+				defer func(s string) {
+					imagePol.Spec.Policy.SemVer.Range = s
+				}(imagePol.Spec.Policy.SemVer.Range)
+				imagePol.Spec.Policy.SemVer.Range = tt.semVerPolicy2ndPass
+			}
+
+			g.Expect(
+				c.Update(context.Background(), imagePol),
+			).To(Succeed(), "failed updating image policy for 2nd pass")
+
+			if _, images2ndPass, err = test.LoadImages(registryServer, "foo/bar", versions); err != nil {
+				t.Fatalf("could not overwrite tag: %s", err)
+			}
+
+			defer func() {
+				// the new 1st pass is the old 2nd pass in the next sub-test
+				images1stPass = images2ndPass
+			}()
+
+			res, err = r.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: ns.Name,
+					Name:      imagePol.Name,
+				},
+			})
+
+			g.Expect(err).NotTo(HaveOccurred(), "reconciliation failed")
+			g.Expect(res).To(Equal(ctrl.Result{}))
+
+			g.Expect(
+				c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol),
+			).To(Succeed(), "failed getting image policy")
+
+			g.Expect(imagePol.Status.LatestDigest).
+				To(Equal(tt.digest2ndPass()), "unexpected 2nd pass digest in status")
 		})
 	}
 }

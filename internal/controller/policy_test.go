@@ -51,7 +51,7 @@ func TestImagePolicyReconciler_crossNamespaceRefsDisallowed(t *testing.T) {
 	defer registryServer.Close()
 
 	versions := []string{"1.0.1", "1.0.2", "1.1.0-alpha"}
-	imgRepo, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), versions)
+	imgRepo, _, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), versions)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	namespaceLabels := map[string]string{
@@ -171,7 +171,7 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			imgRepo, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), tt.versions)
+			imgRepo, _, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), tt.versions)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			repo := imagev1.ImageRepository{
@@ -219,7 +219,8 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 			if !tt.wantFailure {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
-					return err == nil && pol.Status.LatestImage != ""
+					return err == nil &&
+						pol.Status.LatestImage != ""
 				}, timeout, interval).Should(BeTrue())
 				g.Expect(pol.Status.LatestImage).To(Equal(imgRepo + tt.wantImageTag))
 			} else {
@@ -276,7 +277,7 @@ func TestImagePolicyReconciler_filterTags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			imgRepo, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), tt.versions)
+			imgRepo, _, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), tt.versions)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			repo := imagev1.ImageRepository{
@@ -440,7 +441,7 @@ func TestImagePolicyReconciler_accessImageRepo(t *testing.T) {
 			g := NewWithT(t)
 
 			versions := []string{"1.0.0", "1.0.1"}
-			imgRepo, err := test.LoadImages(registryServer, "acl-image-"+randStringRunes(5), versions)
+			imgRepo, _, err := test.LoadImages(registryServer, "acl-image-"+randStringRunes(5), versions)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)

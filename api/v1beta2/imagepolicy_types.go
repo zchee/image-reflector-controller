@@ -42,7 +42,23 @@ type ImagePolicySpec struct {
 	// ordered and compared.
 	// +optional
 	FilterTags *TagFilter `json:"filterTags,omitempty"`
+	// ReflectDigest governs the setting of the `.status.latestDigest` field.
+	// +optional
+	DigestReflectionPolicy *ReflectionPolicy `json:"digestReflectionPolicy,omitempty"`
 }
+
+// ReflectionPolicy describes a policy for if/when to reflect a value from the registry in a certain resource field.
+// +kubebuilder:validation:Enum=Always;IfNotPresent
+type ReflectionPolicy string
+
+const (
+	// ReflectAlways means that a value is always reflected with the latest value from the registry even if this would
+	// overwrite an existing value in the object.
+	ReflectAlways ReflectionPolicy = "Always"
+	// ReflectIfNotPresent means that the target value is only reflected from the registry if it is empty. It will
+	// never be overwritten afterwards, even if it changes in the registry.
+	ReflectIfNotPresent ReflectionPolicy = "IfNotPresent"
+)
 
 // ImagePolicyChoice is a union of all the types of policy that can be
 // supplied.
@@ -107,6 +123,10 @@ type ImagePolicyStatus struct {
 	// the image repository, when filtered and ordered according to
 	// the policy.
 	LatestImage string `json:"latestImage,omitempty"`
+	// LatestDigest is the digest of the latest image stored in the
+	// accompanying LatestImage field.
+	// +optional
+	LatestDigest string `json:"latestDigest,omitempty"`
 	// ObservedPreviousImage is the observed previous LatestImage. It is used
 	// to keep track of the previous and current images.
 	// +optional

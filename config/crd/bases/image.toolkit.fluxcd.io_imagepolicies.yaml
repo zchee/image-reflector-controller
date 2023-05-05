@@ -230,6 +230,13 @@ spec:
             description: ImagePolicySpec defines the parameters for calculating the
               ImagePolicy.
             properties:
+              digestReflectionPolicy:
+                description: ReflectDigest governs the setting of the `.status.latestDigest`
+                  field.
+                enum:
+                - Always
+                - IfNotPresent
+                type: string
               filterTags:
                 description: FilterTags enables filtering for only a subset of tags
                   based on a set of rules. If no rules are provided, all the tags
@@ -382,6 +389,10 @@ spec:
                   - type
                   type: object
                 type: array
+              latestDigest:
+                description: LatestDigest is the digest of the latest image stored
+                  in the accompanying LatestImage field.
+                type: string
               latestImage:
                 description: LatestImage gives the first in the list of images scanned
                   by the image repository, when filtered and ordered according to
