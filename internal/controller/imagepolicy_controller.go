@@ -48,7 +48,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	pkgreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
 	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 )
@@ -257,7 +257,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	// Cleanup the last result.
-	obj.Status.LatestImage = ""
+	obj.Status.LatestRef = imagev1.ImageRef{}
 
 	// Get ImageRepository from reference.
 	repo, err := r.getImageRepository(ctx, obj)
@@ -316,28 +316,29 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	// Write the observations on status.
-	obj.Status.LatestImage = repo.Spec.Image + ":" + latest
+	obj.Status.LatestRef.Name, obj.Status.LatestRef.Tag = repo.Spec.Image, latest
 	// If the old latest image and new latest image don't match, set the old
 	// image as the observed previous image.
 	// NOTE: The following allows the previous image to be set empty when
 	// there's a failure and a subsequent recovery from it. This behavior helps
 	// avoid creating an update event as there's no previous image to infer
 	// from. Recovery from a failure shouldn't result in an update event.
-	if oldObj.Status.LatestImage != obj.Status.LatestImage {
-		obj.Status.ObservedPreviousImage = oldObj.Status.LatestImage
+	if oldObj.Status.LatestRef != obj.Status.LatestRef {
+		obj.Status.ObservedPreviousRef = oldObj.Status.LatestRef.DeepCopy()
 	}
 
-	if err := r.updateDigest(ctx, repo, obj, latest); err != nil {
+	if err := r.updateDigest(ctx, repo, obj, oldObj, latest); err != nil {
 		result, retErr = ctrl.Result{}, err
 		return
 	}
 
 	// Parse the observed previous image if any and extract previous tag. This
 	// is used to determine image tag update path.
-	if obj.Status.ObservedPreviousImage != "" {
-		prevRef, err := name.NewTag(obj.Status.ObservedPreviousImage)
+	if obj.Status.ObservedPreviousRef != nil {
+		img := obj.Status.ObservedPreviousRef.Name + ":" + obj.Status.ObservedPreviousRef.Tag
+		prevRef, err := name.NewTag(img)
 		if err != nil {
-			e := fmt.Errorf("failed to parse previous image '%s': %w", obj.Status.ObservedPreviousImage, err)
+			e := fmt.Errorf("failed to parse previous image '%s': %w", img, err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, meta.FailedReason, e.Error())
 			result, retErr = ctrl.Result{}, e
 		}
@@ -353,22 +354,24 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	return
 }
 
-func (r *ImagePolicyReconciler) updateDigest(ctx context.Context, repo *imagev1.ImageRepository, obj *imagev1.ImagePolicy, tag string) error {
+func (r *ImagePolicyReconciler) updateDigest(ctx context.Context, repo *imagev1.ImageRepository, obj, oldObj *imagev1.ImagePolicy, tag string) error {
 	if obj.Spec.DigestReflectionPolicy == nil {
-		obj.Status.LatestDigest = ""
+		obj.Status.LatestRef.Digest = ""
 		return nil
 	}
 
 	if *obj.Spec.DigestReflectionPolicy == imagev1.ReflectIfNotPresent &&
-		obj.Status.LatestDigest != "" &&
-		(obj.Status.ObservedPreviousImage == "" || obj.Status.ObservedPreviousImage == obj.Status.LatestImage) {
+		oldObj.Status.LatestRef.Digest != "" &&
+		obj.Status.LatestRef.Name == oldObj.Status.LatestRef.Name &&
+		obj.Status.LatestRef.Tag == oldObj.Status.LatestRef.Tag {
+		obj.Status.LatestRef.Digest = oldObj.Status.LatestRef.Digest
 		return nil
 	}
 
 	var err error
-	obj.Status.LatestDigest, err = r.fetchDigest(ctx, repo, tag, obj)
+	obj.Status.LatestRef.Digest, err = r.fetchDigest(ctx, repo, tag, obj)
 	if err != nil {
-		return fmt.Errorf("failed fetching digest of %s: %w", obj.Status.LatestImage, err)
+		return fmt.Errorf("failed fetching digest of %s: %w", obj.Status.LatestRef.String(), err)
 	}
 
 	return nil

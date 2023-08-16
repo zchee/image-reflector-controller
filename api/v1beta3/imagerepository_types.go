@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Flux authors
+Copyright 2023 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta2
+package v1beta3
 
 import (
 	"time"
@@ -26,8 +26,6 @@ import (
 )
 
 const ImageRepositoryKind = "ImageRepository"
-
-// Deprecated: Use ImageFinalizer.
 const ImageRepositoryFinalizer = "finalizers.fluxcd.io"
 
 // ImageRepositorySpec defines the parameters for scanning an image
@@ -63,21 +61,17 @@ type ImageRepositorySpec struct {
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
-	// CertSecretRef can be given the name of a Secret containing
+	// CertSecretRef can be given the name of a secret containing
 	// either or both of
 	//
-	// - a PEM-encoded client certificate (`tls.crt`) and private
-	// key (`tls.key`);
-	// - a PEM-encoded CA certificate (`ca.crt`)
+	//  - a PEM-encoded client certificate (`certFile`) and private
+	//  key (`keyFile`);
+	//  - a PEM-encoded CA certificate (`caFile`)
 	//
-	// and whichever are supplied, will be used for connecting to the
-	// registry. The client cert and key are useful if you are
-	// authenticating with a certificate; the CA cert is useful if
-	// you are using a self-signed server certificate. The Secret must
-	// be of type `Opaque` or `kubernetes.io/tls`.
-	//
-	// Note: Support for the `caFile`, `certFile` and `keyFile` keys has
-	// been deprecated.
+	//  and whichever are supplied, will be used for connecting to the
+	//  registry. The client cert and key are useful if you are
+	//  authenticating with a certificate; the CA cert is useful if
+	//  you are using a self-signed server certificate.
 	// +optional
 	CertSecretRef *meta.LocalObjectReference `json:"certSecretRef,omitempty"`
 
@@ -185,6 +179,7 @@ func (in ImageRepository) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Last scan",type=string,JSONPath=`.status.lastScanResult.scanTime`

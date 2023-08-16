@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Flux authors
+Copyright 2023 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta2
+package v1beta3
 
 import (
 	"github.com/fluxcd/pkg/apis/meta"
@@ -22,8 +22,6 @@ import (
 )
 
 const ImagePolicyKind = "ImagePolicy"
-
-// Deprecated: Use ImageFinalizer.
 const ImagePolicyFinalizer = "finalizers.fluxcd.io"
 
 // ImagePolicySpec defines the parameters for calculating the
@@ -42,7 +40,23 @@ type ImagePolicySpec struct {
 	// ordered and compared.
 	// +optional
 	FilterTags *TagFilter `json:"filterTags,omitempty"`
+	// ReflectDigest governs the setting of the `.status.latestDigest` field.
+	// +optional
+	DigestReflectionPolicy *ReflectionPolicy `json:"digestReflectionPolicy,omitempty"`
 }
+
+// ReflectionPolicy describes a policy for if/when to reflect a value from the registry in a certain resource field.
+// +kubebuilder:validation:Enum=Always;IfNotPresent
+type ReflectionPolicy string
+
+const (
+	// ReflectAlways means that a value is always reflected with the latest value from the registry even if this would
+	// overwrite an existing value in the object.
+	ReflectAlways ReflectionPolicy = "Always"
+	// ReflectIfNotPresent means that the target value is only reflected from the registry if it is empty. It will
+	// never be overwritten afterwards, even if it changes in the registry.
+	ReflectIfNotPresent ReflectionPolicy = "IfNotPresent"
+)
 
 // ImagePolicyChoice is a union of all the types of policy that can be
 // supplied.
@@ -101,16 +115,35 @@ type TagFilter struct {
 	Extract string `json:"extract"`
 }
 
+// ImageRef represents an image reference.
+type ImageRef struct {
+	// Name is the bare image's name.
+	Name string `json:"image,omitempty"`
+	// Tag is the image's tag.
+	Tag string `json:"tag,omitempty"`
+	// Digest is the image's digest.
+	// +optional
+	Digest string `json:"digest,omitempty"`
+}
+
+func (r ImageRef) String() string {
+	res := r.Name + ":" + r.Tag
+	if r.Digest != "" {
+		res += "@" + r.Digest
+	}
+	return res
+}
+
 // ImagePolicyStatus defines the observed state of ImagePolicy
 type ImagePolicyStatus struct {
-	// LatestImage gives the first in the list of images scanned by
-	// the image repository, when filtered and ordered according to
-	// the policy.
-	LatestImage string `json:"latestImage,omitempty"`
-	// ObservedPreviousImage is the observed previous LatestImage. It is used
+	// LatestRef gives the first in the list of images scanned by
+	// the image repository, when filtered and ordered according
+	// to the policy.
+	LatestRef ImageRef `json:"latestRef,omitempty"`
+	// ObservedPreviousRef is the observed previous LatestRef. It is used
 	// to keep track of the previous and current images.
 	// +optional
-	ObservedPreviousImage string `json:"observedPreviousImage,omitempty"`
+	ObservedPreviousRef *ImageRef `json:"observedPreviousRef,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// +optional
@@ -127,6 +160,7 @@ func (p *ImagePolicy) SetConditions(conditions []metav1.Condition) {
 	p.Status.Conditions = conditions
 }
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="LatestImage",type=string,JSONPath=`.status.latestImage`

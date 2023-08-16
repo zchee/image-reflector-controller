@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
 	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
@@ -466,7 +466,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 				c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol),
 			).To(Succeed(), "failed getting image policy")
 
-			g.Expect(imagePol.Status.LatestDigest).
+			g.Expect(imagePol.Status.LatestRef.Digest).
 				To(Equal(tt.digest1stPass()), "unexpected 1st pass digest in status")
 
 			// Now, change the policy (if the test desires it) and overwrite the existing latest tag with a new image
@@ -517,7 +517,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 				c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol),
 			).To(Succeed(), "failed getting image policy")
 
-			g.Expect(imagePol.Status.LatestDigest).
+			g.Expect(imagePol.Status.LatestRef.Digest).
 				To(Equal(tt.digest2ndPass()), "unexpected 2nd pass digest in status")
 		})
 	}

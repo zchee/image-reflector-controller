@@ -35,7 +35,7 @@ import (
 	conditionscheck "github.com/fluxcd/pkg/runtime/conditions/check"
 	"github.com/fluxcd/pkg/runtime/patch"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
 	"github.com/fluxcd/image-reflector-controller/internal/database"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 	// +kubebuilder:scaffold:imports
@@ -220,9 +220,9 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
 					return err == nil &&
-						pol.Status.LatestImage != ""
+						pol.Status.LatestRef != imagev1.ImageRef{}
 				}, timeout, interval).Should(BeTrue())
-				g.Expect(pol.Status.LatestImage).To(Equal(imgRepo + tt.wantImageTag))
+				g.Expect(pol.Status.LatestRef.String()).To(Equal(imgRepo + tt.wantImageTag))
 			} else {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
@@ -330,9 +330,9 @@ func TestImagePolicyReconciler_filterTags(t *testing.T) {
 			if !tt.wantFailure {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
-					return err == nil && pol.Status.LatestImage != ""
+					return err == nil && pol.Status.LatestRef != imagev1.ImageRef{}
 				}, timeout, interval).Should(BeTrue())
-				g.Expect(pol.Status.LatestImage).To(Equal(imgRepo + tt.wantImageTag))
+				g.Expect(pol.Status.LatestRef.String()).To(Equal(imgRepo + tt.wantImageTag))
 			} else {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
@@ -506,9 +506,9 @@ func TestImagePolicyReconciler_accessImageRepo(t *testing.T) {
 			if tt.wantAccessible {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
-					return err == nil && pol.Status.LatestImage != ""
+					return err == nil && pol.Status.LatestRef.Name != ""
 				}, timeout, interval).Should(BeTrue())
-				g.Expect(pol.Status.LatestImage).To(Equal(imgRepo + ":1.0.1"))
+				g.Expect(pol.Status.LatestRef.String()).To(Equal(imgRepo + ":1.0.1"))
 			} else {
 				g.Eventually(func() bool {
 					_ = testEnv.Get(ctx, polName, &pol)
