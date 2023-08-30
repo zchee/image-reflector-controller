@@ -1,5 +1,7 @@
 # Image Policies
 
+<!-- menuweight:20 -->
+
 The `ImagePolicies` API defines rules for selecting a "latest" image from
 `ImageRepositories`.
 
@@ -19,6 +21,7 @@ metadata:
 spec:
   imageRepositoryRef:
     name: podinfo
+  digestReflectionPolicy: IfNotPresent
   policy:
     semver:
       range: 5.1.x
@@ -255,7 +258,7 @@ used in the policy rule to determine the latest tag.
 `.spec.digestReflectionPolicy` is an optional field that governs the reflection of the selected image's
 digest in the ImagePolicy's `.status.latestDigest` field. The field has three possible values:
 
-- `null`: If the field is set to `null` (or not set at all) the digest will not be reflected at all.
+- `Never`: If the field is set to `Never` (or not present) the digest will not be reflected at all.
 - `Always`: This value leads to the digest of the latest tag to always be reflected in `.status.
   latestDigest`. An existing, potentially different digest will be overwritten with the most recent value 
   retrieved from the image registry even if the tag didn't change. This may be useful to track mutable tags 

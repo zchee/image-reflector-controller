@@ -355,12 +355,12 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 }
 
 func (r *ImagePolicyReconciler) updateDigest(ctx context.Context, repo *imagev1.ImageRepository, obj, oldObj *imagev1.ImagePolicy, tag string) error {
-	if obj.Spec.DigestReflectionPolicy == nil {
+	if obj.Spec.DigestReflectionPolicy == nil || strings.EqualFold(string(*obj.Spec.DigestReflectionPolicy), string(imagev1.ReflectNever)) {
 		obj.Status.LatestRef.Digest = ""
 		return nil
 	}
 
-	if *obj.Spec.DigestReflectionPolicy == imagev1.ReflectIfNotPresent &&
+	if strings.EqualFold(string(*obj.Spec.DigestReflectionPolicy), string(imagev1.ReflectIfNotPresent)) &&
 		oldObj.Status.LatestRef.Digest != "" &&
 		obj.Status.LatestRef.Name == oldObj.Status.LatestRef.Name &&
 		obj.Status.LatestRef.Tag == oldObj.Status.LatestRef.Tag {

@@ -22,6 +22,8 @@ import (
 )
 
 const ImagePolicyKind = "ImagePolicy"
+
+// Deprecated: Use ImageFinalizer.
 const ImagePolicyFinalizer = "finalizers.fluxcd.io"
 
 // ImagePolicySpec defines the parameters for calculating the
@@ -46,7 +48,7 @@ type ImagePolicySpec struct {
 }
 
 // ReflectionPolicy describes a policy for if/when to reflect a value from the registry in a certain resource field.
-// +kubebuilder:validation:Enum=Always;IfNotPresent
+// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
 type ReflectionPolicy string
 
 const (
@@ -56,6 +58,8 @@ const (
 	// ReflectIfNotPresent means that the target value is only reflected from the registry if it is empty. It will
 	// never be overwritten afterwards, even if it changes in the registry.
 	ReflectIfNotPresent ReflectionPolicy = "IfNotPresent"
+	// ReflectNever means that no reflection will happen at all.
+	ReflectNever ReflectionPolicy = "Never"
 )
 
 // ImagePolicyChoice is a union of all the types of policy that can be

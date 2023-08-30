@@ -270,9 +270,9 @@ func TestImagePolicyReconciler_getImageRepository(t *testing.T) {
 }
 
 func TestImagePolicyReconciler_digestReflection(t *testing.T) {
-	polAlways := imagev1.ReflectAlways
-	polIfNotPresent := imagev1.ReflectIfNotPresent
-
+	polAlways := imagev1.ReflectionPolicy("AlWaYs")
+	polIfNotPresent := imagev1.ReflectionPolicy("IfNoTpReSeNt")
+	polNever := imagev1.ReflectionPolicy("NeVeR")
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
@@ -293,8 +293,18 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		digest2ndPass       func() string
 	}{
 		{
-			name:             "nil/missing policy leaves digest empty",
+			name:             "missing policy leaves digest empty",
 			refPolicy1stPass: nil,
+			digest1stPass: func() string {
+				return ""
+			},
+			digest2ndPass: func() string {
+				return ""
+			},
+		},
+		{
+			name:             "'Never' policy leaves digest empty",
+			refPolicy1stPass: &polNever,
 			digest1stPass: func() string {
 				return ""
 			},
@@ -339,7 +349,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		{
 			name:             "unsetting 'Always' policy removes digest",
 			refPolicy1stPass: &polAlways,
-			refPolicy2ndPass: nil,
+			refPolicy2ndPass: &polNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -350,7 +360,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		{
 			name:             "unsetting 'IfNotPresent' policy removes digest",
 			refPolicy1stPass: &polIfNotPresent,
-			refPolicy2ndPass: nil,
+			refPolicy2ndPass: &polNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
