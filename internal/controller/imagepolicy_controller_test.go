@@ -455,7 +455,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(32),
 				Client:        c,
 				Database:      &mockDatabase{TagData: imageRepo.Status.LastScanResult.LatestTags},
-				RegistryHelper: registry.NewDefaultHelper(c, login.ProviderOptions{
+				AuthOptionsGetter: registry.NewAuthOptionsGetter(c, login.ProviderOptions{
 					AwsAutoLogin:   false,
 					AzureAutoLogin: false,
 					GcpAutoLogin:   false,

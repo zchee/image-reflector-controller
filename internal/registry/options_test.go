@@ -34,7 +34,7 @@ import (
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 )
 
-func TestDefaultHelperAuthOptions(t *testing.T) {
+func TestNewAuthOptionsGetter(t *testing.T) {
 	testImg := "example.com/foo/bar"
 	testSecretName := "test-secret"
 	testTLSSecretName := "test-tls-secret"
@@ -232,9 +232,9 @@ func TestDefaultHelperAuthOptions(t *testing.T) {
 			k8sClient := fake.NewClientBuilder().
 				WithObjects(tt.k8sObjs...).
 				Build()
-			h := registry.NewDefaultHelper(k8sClient, login.ProviderOptions{})
+			getter := registry.NewAuthOptionsGetter(k8sClient, login.ProviderOptions{})
 
-			opts, err := h.GetAuthOptions(context.Background(), tt.repo)
+			opts, err := getter(context.Background(), tt.repo)
 			if tt.expectErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {

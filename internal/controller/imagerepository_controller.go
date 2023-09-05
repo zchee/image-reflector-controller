@@ -107,7 +107,7 @@ type ImageRepositoryReconciler struct {
 		DatabaseReader
 	}
 
-	RegistryHelper registry.Helper
+	AuthOptionsGetter registry.AuthOptionsGetter
 
 	patchOptions []patch.Option
 }
@@ -252,7 +252,7 @@ func (r *ImageRepositoryReconciler) reconcile(ctx context.Context, sp *patch.Ser
 	}
 	conditions.Delete(obj, meta.StalledCondition)
 
-	opts, err := r.RegistryHelper.GetAuthOptions(ctx, *obj)
+	opts, err := r.AuthOptionsGetter(ctx, *obj)
 	if err != nil {
 		e := fmt.Errorf("failed to configure authentication options: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, imagev1.AuthenticationFailedReason, e.Error())

@@ -237,7 +237,7 @@ spec:
               ImagePolicy.
             properties:
               digestReflectionPolicy:
-                description: ReflectDigest governs the setting of the `.status.latestDigest`
+                description: DigestReflectionPolicy governs the setting of the `.status.latestDigest`
                   field.
                 enum:
                 - Always

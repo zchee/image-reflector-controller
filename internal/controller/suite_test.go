@@ -87,13 +87,13 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("Failed to create new Badger database: %v", err))
 	}
 
-	regHelper := registry.NewDefaultHelper(testEnv, login.ProviderOptions{})
+	optGetter := registry.NewAuthOptionsGetter(testEnv, login.ProviderOptions{})
 
 	if err = (&ImageRepositoryReconciler{
-		Client:         testEnv,
-		Database:       database.NewBadgerDatabase(testBadgerDB),
-		EventRecorder:  record.NewFakeRecorder(256),
-		RegistryHelper: regHelper,
+		Client:            testEnv,
+		Database:          database.NewBadgerDatabase(testBadgerDB),
+		EventRecorder:     record.NewFakeRecorder(256),
+		AuthOptionsGetter: optGetter,
 	}).SetupWithManager(testEnv, ImageRepositoryReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {
@@ -101,10 +101,10 @@ func TestMain(m *testing.M) {
 	}
 
 	if err = (&ImagePolicyReconciler{
-		Client:         testEnv,
-		Database:       database.NewBadgerDatabase(testBadgerDB),
-		EventRecorder:  record.NewFakeRecorder(256),
-		RegistryHelper: regHelper,
+		Client:            testEnv,
+		Database:          database.NewBadgerDatabase(testBadgerDB),
+		EventRecorder:     record.NewFakeRecorder(256),
+		AuthOptionsGetter: optGetter,
 	}).SetupWithManager(testEnv, ImagePolicyReconcilerOptions{
 		RateLimiter: controller.GetDefaultRateLimiter(),
 	}); err != nil {

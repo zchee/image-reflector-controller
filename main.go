@@ -211,15 +211,15 @@ func main() {
 		AzureAutoLogin: azureAutoLogin,
 		GcpAutoLogin:   gcpAutoLogin,
 	}
-	registryHelper := registry.NewDefaultHelper(mgr.GetClient(), deprecatedLoginOptions)
+	authOptionsGetter := registry.NewAuthOptionsGetter(mgr.GetClient(), deprecatedLoginOptions)
 
 	if err := (&controller.ImageRepositoryReconciler{
-		Client:         mgr.GetClient(),
-		EventRecorder:  eventRecorder,
-		Metrics:        metricsH,
-		Database:       db,
-		ControllerName: controllerName,
-		RegistryHelper: registryHelper,
+		Client:            mgr.GetClient(),
+		EventRecorder:     eventRecorder,
+		Metrics:           metricsH,
+		Database:          db,
+		ControllerName:    controllerName,
+		AuthOptionsGetter: authOptionsGetter,
 	}).SetupWithManager(mgr, controller.ImageRepositoryReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {
@@ -227,13 +227,13 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.ImagePolicyReconciler{
-		Client:         mgr.GetClient(),
-		EventRecorder:  eventRecorder,
-		Metrics:        metricsH,
-		Database:       db,
-		ACLOptions:     aclOptions,
-		ControllerName: controllerName,
-		RegistryHelper: registryHelper,
+		Client:            mgr.GetClient(),
+		EventRecorder:     eventRecorder,
+		Metrics:           metricsH,
+		Database:          db,
+		ACLOptions:        aclOptions,
+		ControllerName:    controllerName,
+		AuthOptionsGetter: authOptionsGetter,
 	}).SetupWithManager(mgr, controller.ImagePolicyReconcilerOptions{
 		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {

@@ -109,10 +109,10 @@ type ImagePolicyReconciler struct {
 	kuberecorder.EventRecorder
 	helper.Metrics
 
-	ControllerName string
-	Database       DatabaseReader
-	ACLOptions     acl.Options
-	RegistryHelper registry.Helper
+	ControllerName    string
+	Database          DatabaseReader
+	ACLOptions        acl.Options
+	AuthOptionsGetter registry.AuthOptionsGetter
 
 	patchOptions []patch.Option
 }
@@ -386,7 +386,7 @@ func (r *ImagePolicyReconciler) fetchDigest(ctx context.Context, repo *imagev1.I
 	if err != nil {
 		return "", fmt.Errorf("failed parsing reference %q: %w", ref, err)
 	}
-	opts, err := r.RegistryHelper.GetAuthOptions(ctx, *repo)
+	opts, err := r.AuthOptionsGetter(ctx, *repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to configure authentication options: %w", err)
 	}
