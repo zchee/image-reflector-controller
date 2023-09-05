@@ -42,7 +42,7 @@ type ImagePolicySpec struct {
 	// ordered and compared.
 	// +optional
 	FilterTags *TagFilter `json:"filterTags,omitempty"`
-	// ReflectDigest governs the setting of the `.status.latestDigest` field.
+	// DigestReflectionPolicy governs the setting of the `.status.latestDigest` field.
 	// +optional
 	DigestReflectionPolicy *ReflectionPolicy `json:"digestReflectionPolicy,omitempty"`
 }
