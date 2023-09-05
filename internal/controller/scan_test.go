@@ -367,7 +367,7 @@ func TestImageRepositoryReconciler_imageAttribute_schemePrefix(t *testing.T) {
 		ready = apimeta.FindStatusCondition(repo.GetConditions(), meta.ReadyCondition)
 		return ready != nil && ready.Reason == imagev1.ImageURLInvalidReason
 	}, timeout, interval).Should(BeTrue())
-	g.Expect(ready.Message).To(ContainSubstring("should not start with URL scheme"))
+	g.Expect(ready.Message).To(ContainSubstring("should not include URL scheme"))
 
 	// Check if the object status is valid.
 	condns := &conditionscheck.Conditions{NegativePolarity: imageRepositoryNegativeConditions}
