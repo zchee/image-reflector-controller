@@ -23,19 +23,19 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-// ParseImageReference parses the given URL into a container registry repository
-// reference.
-func ParseImageReference(url string) (name.Reference, error) {
-	if s := strings.Split(url, "://"); len(s) > 1 {
-		return nil, fmt.Errorf(".spec.image value should not start with URL scheme; remove '%s://'", s[0])
+// ParseImageReference parses the given reference string into a container
+// registry repository reference.
+func ParseImageReference(refs string) (name.Reference, error) {
+	if s := strings.Split(refs, "://"); len(s) > 1 {
+		return nil, fmt.Errorf("image reference value should not include URL scheme; remove '%s://'", s[0])
 	}
 
-	ref, err := name.ParseReference(url)
+	ref, err := name.ParseReference(refs)
 	if err != nil {
 		return nil, err
 	}
 
-	imageName := strings.TrimPrefix(url, ref.Context().RegistryStr())
+	imageName := strings.TrimPrefix(refs, ref.Context().RegistryStr())
 	if s := strings.Split(imageName, ":"); len(s) > 1 {
 		return nil, fmt.Errorf(".spec.image value should not contain a tag; remove ':%s'", s[1])
 	}

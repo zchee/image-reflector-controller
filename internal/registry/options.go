@@ -64,7 +64,7 @@ func NewAuthOptionsGetter(c client.Client, deprecatedLoginOpts login.ProviderOpt
 
 		ref, err := ParseImageReference(obj.Spec.Image)
 		if err != nil {
-			return nil, fmt.Errorf("failed parsing image reference: %w", err)
+			return nil, fmt.Errorf("failed parsing image reference %q: %w", obj.Spec.Image, err)
 		}
 
 		if obj.Spec.SecretRef != nil {
