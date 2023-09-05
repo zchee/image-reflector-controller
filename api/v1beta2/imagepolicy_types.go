@@ -177,7 +177,9 @@ func (p *ImagePolicy) SetConditions(conditions []metav1.Condition) {
 // +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="LatestImage",type=string,JSONPath=`.status.latestImage`
+// +kubebuilder:printcolumn:name="LatestImage",type=string,JSONPath=`.status.latestRef.image`
+// +kubebuilder:printcolumn:name="LatestTag",type=string,JSONPath=`.status.latestRef.tag`
+// +kubebuilder:printcolumn:name="LatestDigest",type=string,JSONPath=`.status.latestRef.digest`
 
 // ImagePolicy is the Schema for the imagepolicies API
 type ImagePolicy struct {

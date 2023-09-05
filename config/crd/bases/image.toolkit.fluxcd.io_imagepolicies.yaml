@@ -206,8 +206,14 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
-    - jsonPath: .status.latestImage
+    - jsonPath: .status.latestRef.image
       name: LatestImage
+      type: string
+    - jsonPath: .status.latestRef.tag
+      name: LatestTag
+      type: string
+    - jsonPath: .status.latestRef.digest
+      name: LatestDigest
       type: string
     name: v1beta2
     schema:
