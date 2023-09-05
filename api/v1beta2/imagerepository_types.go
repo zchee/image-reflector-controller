@@ -185,6 +185,7 @@ func (in ImageRepository) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Last scan",type=string,JSONPath=`.status.lastScanResult.scanTime`

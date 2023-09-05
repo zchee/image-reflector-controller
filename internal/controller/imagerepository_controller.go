@@ -47,7 +47,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/reconcile"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 )
 

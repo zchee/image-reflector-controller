@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 	"github.com/fluxcd/image-reflector-controller/internal/secret"
 	"github.com/fluxcd/image-reflector-controller/internal/test"

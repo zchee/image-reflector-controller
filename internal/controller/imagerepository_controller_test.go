@@ -33,7 +33,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 )

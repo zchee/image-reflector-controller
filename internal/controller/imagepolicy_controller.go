@@ -48,7 +48,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	pkgreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 
-	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta3"
+	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/registry"
 )
@@ -257,6 +257,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	// Cleanup the last result.
+	obj.Status.LatestImage = ""
 	obj.Status.LatestRef = imagev1.ImageRef{}
 
 	// Get ImageRepository from reference.
@@ -316,6 +317,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	// Write the observations on status.
+	obj.Status.LatestImage = repo.Spec.Image + ":" + latest
 	obj.Status.LatestRef.Name, obj.Status.LatestRef.Tag = repo.Spec.Image, latest
 	// If the old latest image and new latest image don't match, set the old
 	// image as the observed previous image.
@@ -324,6 +326,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	// avoid creating an update event as there's no previous image to infer
 	// from. Recovery from a failure shouldn't result in an update event.
 	if oldObj.Status.LatestRef != obj.Status.LatestRef {
+		obj.Status.ObservedPreviousImage = oldObj.Status.LatestImage
 		obj.Status.ObservedPreviousRef = oldObj.Status.LatestRef.DeepCopy()
 	}
 
