@@ -422,7 +422,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace:  ns.Name,
 					Name:       "digref-test",
-					Finalizers: []string{imagev1.ImagePolicyFinalizer},
+					Finalizers: []string{imagev1.ImageFinalizer},
 				},
 				Spec: imagev1.ImagePolicySpec{
 					ImageRepositoryRef: meta.NamespacedObjectReference{
@@ -481,22 +481,10 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 
 			// Now, change the policy (if the test desires it) and overwrite the existing latest tag with a new image
 
-			defer func() {
-				g.Expect(
-					c.Update(context.Background(), imagePol),
-				).To(Succeed(), "failed resetting image policy to original values")
-			}()
-
 			if tt.refPolicy1stPass != tt.refPolicy2ndPass {
-				defer func(p *imagev1.ReflectionPolicy) {
-					imagePol.Spec.DigestReflectionPolicy = p
-				}(imagePol.Spec.DigestReflectionPolicy)
 				imagePol.Spec.DigestReflectionPolicy = tt.refPolicy2ndPass
 			}
 			if tt.semVerPolicy2ndPass != "" {
-				defer func(s string) {
-					imagePol.Spec.Policy.SemVer.Range = s
-				}(imagePol.Spec.Policy.SemVer.Range)
 				imagePol.Spec.Policy.SemVer.Range = tt.semVerPolicy2ndPass
 			}
 
