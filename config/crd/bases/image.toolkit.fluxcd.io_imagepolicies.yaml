@@ -206,14 +206,8 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
-    - jsonPath: .status.latestRef.image
+    - jsonPath: .status.latestImage
       name: LatestImage
-      type: string
-    - jsonPath: .status.latestRef.tag
-      name: LatestTag
-      type: string
-    - jsonPath: .status.latestRef.digest
-      name: LatestDigest
       type: string
     name: v1beta2
     schema:
@@ -237,6 +231,7 @@ spec:
               ImagePolicy.
             properties:
               digestReflectionPolicy:
+                default: Never
                 description: DigestReflectionPolicy governs the setting of the `.status.latestDigest`
                   field.
                 enum:

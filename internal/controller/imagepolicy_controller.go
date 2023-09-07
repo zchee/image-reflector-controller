@@ -258,7 +258,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 
 	// Cleanup the last result.
 	obj.Status.LatestImage = ""
-	obj.Status.LatestRef = imagev1.ImageRef{}
+	obj.Status.LatestRef = nil
 
 	// Get ImageRepository from reference.
 	repo, err := r.getImageRepository(ctx, obj)
@@ -318,7 +318,8 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 
 	// Write the observations on status.
 	obj.Status.LatestImage = repo.Spec.Image + ":" + latest
-	obj.Status.LatestRef.Name, obj.Status.LatestRef.Tag = repo.Spec.Image, latest
+	lr := imagev1.ImageRef{Name: repo.Spec.Image, Tag: latest}
+	obj.Status.LatestRef = &lr
 	// If the old latest image and new latest image don't match, set the old
 	// image as the observed previous image.
 	// NOTE: The following allows the previous image to be set empty when
@@ -358,12 +359,12 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 }
 
 func (r *ImagePolicyReconciler) updateDigest(ctx context.Context, repo *imagev1.ImageRepository, obj, oldObj *imagev1.ImagePolicy, tag string) error {
-	if obj.Spec.DigestReflectionPolicy == nil || strings.EqualFold(string(*obj.Spec.DigestReflectionPolicy), string(imagev1.ReflectNever)) {
+	if obj.GetDigestReflectionPolicy() == imagev1.ReflectNever {
 		obj.Status.LatestRef.Digest = ""
 		return nil
 	}
 
-	if strings.EqualFold(string(*obj.Spec.DigestReflectionPolicy), string(imagev1.ReflectIfNotPresent)) &&
+	if obj.GetDigestReflectionPolicy() == imagev1.ReflectIfNotPresent &&
 		oldObj.Status.LatestRef.Digest != "" &&
 		obj.Status.LatestRef.Name == oldObj.Status.LatestRef.Name &&
 		obj.Status.LatestRef.Tag == oldObj.Status.LatestRef.Tag {

@@ -287,14 +287,14 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 	tests := []struct {
 		name                string
 		semVerPolicy2ndPass string
-		refPolicy1stPass    *imagev1.ReflectionPolicy
-		refPolicy2ndPass    *imagev1.ReflectionPolicy
+		refPolicy1stPass    imagev1.ReflectionPolicy
+		refPolicy2ndPass    imagev1.ReflectionPolicy
 		digest1stPass       func() string
 		digest2ndPass       func() string
 	}{
 		{
 			name:             "missing policy leaves digest empty",
-			refPolicy1stPass: nil,
+			refPolicy1stPass: "",
 			digest1stPass: func() string {
 				return ""
 			},
@@ -304,7 +304,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "'Never' policy leaves digest empty",
-			refPolicy1stPass: &polNever,
+			refPolicy1stPass: polNever,
 			digest1stPass: func() string {
 				return ""
 			},
@@ -314,8 +314,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "'Always' policy always updates digest",
-			refPolicy1stPass: &polAlways,
-			refPolicy2ndPass: &polAlways,
+			refPolicy1stPass: polAlways,
+			refPolicy2ndPass: polAlways,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -326,8 +326,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		{
 			name:                "'IfNotPresent' policy updates digest when new tag is selected",
 			semVerPolicy2ndPass: "v2.x",
-			refPolicy1stPass:    &polIfNotPresent,
-			refPolicy2ndPass:    &polIfNotPresent,
+			refPolicy1stPass:    polIfNotPresent,
+			refPolicy2ndPass:    polIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -337,8 +337,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "'IfNotPresent' policy only sets digest once",
-			refPolicy1stPass: &polIfNotPresent,
-			refPolicy2ndPass: &polIfNotPresent,
+			refPolicy1stPass: polIfNotPresent,
+			refPolicy2ndPass: polIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -348,8 +348,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "unsetting 'Always' policy removes digest",
-			refPolicy1stPass: &polAlways,
-			refPolicy2ndPass: &polNever,
+			refPolicy1stPass: polAlways,
+			refPolicy2ndPass: polNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -359,8 +359,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "unsetting 'IfNotPresent' policy removes digest",
-			refPolicy1stPass: &polIfNotPresent,
-			refPolicy2ndPass: &polNever,
+			refPolicy1stPass: polIfNotPresent,
+			refPolicy2ndPass: polNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -370,8 +370,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "changing 'IfNotPresent' to 'Always' sets new digest",
-			refPolicy1stPass: &polIfNotPresent,
-			refPolicy2ndPass: &polAlways,
+			refPolicy1stPass: polIfNotPresent,
+			refPolicy2ndPass: polAlways,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
@@ -381,8 +381,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		},
 		{
 			name:             "changing 'Always' to 'IfNotPresent' leaves digest untouched",
-			refPolicy1stPass: &polAlways,
-			refPolicy2ndPass: &polIfNotPresent,
+			refPolicy1stPass: polAlways,
+			refPolicy2ndPass: polIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},

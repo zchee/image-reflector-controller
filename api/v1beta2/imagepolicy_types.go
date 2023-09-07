@@ -43,8 +43,8 @@ type ImagePolicySpec struct {
 	// +optional
 	FilterTags *TagFilter `json:"filterTags,omitempty"`
 	// DigestReflectionPolicy governs the setting of the `.status.latestDigest` field.
-	// +optional
-	DigestReflectionPolicy *ReflectionPolicy `json:"digestReflectionPolicy,omitempty"`
+	// +kubebuilder:default:=Never
+	DigestReflectionPolicy ReflectionPolicy `json:"digestReflectionPolicy,omitempty"`
 }
 
 // ReflectionPolicy describes a policy for if/when to reflect a value from the registry in a certain resource field.
@@ -153,7 +153,7 @@ type ImagePolicyStatus struct {
 	// LatestRef gives the first in the list of images scanned by
 	// the image repository, when filtered and ordered according
 	// to the policy.
-	LatestRef ImageRef `json:"latestRef,omitempty"`
+	LatestRef *ImageRef `json:"latestRef,omitempty"`
 	// ObservedPreviousRef is the observed previous LatestRef. It is used
 	// to keep track of the previous and current images.
 	// +optional
@@ -177,9 +177,7 @@ func (p *ImagePolicy) SetConditions(conditions []metav1.Condition) {
 // +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="LatestImage",type=string,JSONPath=`.status.latestRef.image`
-// +kubebuilder:printcolumn:name="LatestTag",type=string,JSONPath=`.status.latestRef.tag`
-// +kubebuilder:printcolumn:name="LatestDigest",type=string,JSONPath=`.status.latestRef.digest`
+// +kubebuilder:printcolumn:name="LatestImage",type=string,JSONPath=`.status.latestImage`
 
 // ImagePolicy is the Schema for the imagepolicies API
 type ImagePolicy struct {
@@ -189,6 +187,13 @@ type ImagePolicy struct {
 	Spec ImagePolicySpec `json:"spec,omitempty"`
 	// +kubebuilder:default={"observedGeneration":-1}
 	Status ImagePolicyStatus `json:"status,omitempty"`
+}
+
+func (p ImagePolicy) GetDigestReflectionPolicy() ReflectionPolicy {
+	if p.Spec.DigestReflectionPolicy != "" {
+		return p.Spec.DigestReflectionPolicy
+	}
+	return ReflectNever
 }
 
 //+kubebuilder:object:root=true
