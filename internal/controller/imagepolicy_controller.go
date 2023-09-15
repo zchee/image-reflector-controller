@@ -320,20 +320,22 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	obj.Status.LatestImage = repo.Spec.Image + ":" + latest
 	lr := imagev1.ImageRef{Name: repo.Spec.Image, Tag: latest}
 	obj.Status.LatestRef = &lr
+
+	if err := r.updateDigest(ctx, repo, obj, oldObj, latest); err != nil {
+		result, retErr = ctrl.Result{}, err
+		return
+	}
+
 	// If the old latest image and new latest image don't match, set the old
 	// image as the observed previous image.
 	// NOTE: The following allows the previous image to be set empty when
 	// there's a failure and a subsequent recovery from it. This behavior helps
 	// avoid creating an update event as there's no previous image to infer
 	// from. Recovery from a failure shouldn't result in an update event.
-	if oldObj.Status.LatestRef != obj.Status.LatestRef {
+	if oldObj.Status.LatestRef == nil ||
+		*oldObj.Status.LatestRef != *obj.Status.LatestRef {
 		obj.Status.ObservedPreviousImage = oldObj.Status.LatestImage
 		obj.Status.ObservedPreviousRef = oldObj.Status.LatestRef.DeepCopy()
-	}
-
-	if err := r.updateDigest(ctx, repo, obj, oldObj, latest); err != nil {
-		result, retErr = ctrl.Result{}, err
-		return
 	}
 
 	// Parse the observed previous image if any and extract previous tag. This
@@ -365,6 +367,7 @@ func (r *ImagePolicyReconciler) updateDigest(ctx context.Context, repo *imagev1.
 	}
 
 	if obj.GetDigestReflectionPolicy() == imagev1.ReflectIfNotPresent &&
+		oldObj.Status.LatestRef != nil &&
 		oldObj.Status.LatestRef.Digest != "" &&
 		obj.Status.LatestRef.Name == oldObj.Status.LatestRef.Name &&
 		obj.Status.LatestRef.Tag == oldObj.Status.LatestRef.Tag {

@@ -270,9 +270,6 @@ func TestImagePolicyReconciler_getImageRepository(t *testing.T) {
 }
 
 func TestImagePolicyReconciler_digestReflection(t *testing.T) {
-	polAlways := imagev1.ReflectionPolicy("AlWaYs")
-	polIfNotPresent := imagev1.ReflectionPolicy("IfNoTpReSeNt")
-	polNever := imagev1.ReflectionPolicy("NeVeR")
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
@@ -291,6 +288,7 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 		refPolicy2ndPass    imagev1.ReflectionPolicy
 		digest1stPass       func() string
 		digest2ndPass       func() string
+		previousRef2ndPass  func() *imagev1.ImageRef
 	}{
 		{
 			name:             "missing policy leaves digest empty",
@@ -301,93 +299,173 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 			digest2ndPass: func() string {
 				return ""
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return nil
+			},
 		},
 		{
 			name:             "'Never' policy leaves digest empty",
-			refPolicy1stPass: polNever,
+			refPolicy1stPass: imagev1.ReflectNever,
 			digest1stPass: func() string {
 				return ""
 			},
 			digest2ndPass: func() string {
 				return ""
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return nil
+			},
 		},
 		{
 			name:             "'Always' policy always updates digest",
-			refPolicy1stPass: polAlways,
-			refPolicy2ndPass: polAlways,
+			refPolicy1stPass: imagev1.ReflectAlways,
+			refPolicy2ndPass: imagev1.ReflectAlways,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return images2ndPass["v1.1.1"].String()
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: images1stPass["v1.1.1"].String(),
+				}
+			},
 		},
 		{
 			name:                "'IfNotPresent' policy updates digest when new tag is selected",
 			semVerPolicy2ndPass: "v2.x",
-			refPolicy1stPass:    polIfNotPresent,
-			refPolicy2ndPass:    polIfNotPresent,
+			refPolicy1stPass:    imagev1.ReflectIfNotPresent,
+			refPolicy2ndPass:    imagev1.ReflectIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return images2ndPass["v2.0.0"].String()
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: images1stPass["v1.1.1"].String(),
+				}
+			},
 		},
 		{
 			name:             "'IfNotPresent' policy only sets digest once",
-			refPolicy1stPass: polIfNotPresent,
-			refPolicy2ndPass: polIfNotPresent,
+			refPolicy1stPass: imagev1.ReflectIfNotPresent,
+			refPolicy2ndPass: imagev1.ReflectIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return images1stPass["v1.1.1"].String()
+			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return nil
+			},
+		},
+		{
+			name:             "changing 'Never' to 'IfNotPresent' sets observedPreviousRef correctly",
+			refPolicy1stPass: imagev1.ReflectNever,
+			refPolicy2ndPass: imagev1.ReflectIfNotPresent,
+			digest1stPass: func() string {
+				return ""
+			},
+			digest2ndPass: func() string {
+				return images2ndPass["v1.1.1"].String()
+			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: "",
+				}
 			},
 		},
 		{
 			name:             "unsetting 'Always' policy removes digest",
-			refPolicy1stPass: polAlways,
-			refPolicy2ndPass: polNever,
+			refPolicy1stPass: imagev1.ReflectAlways,
+			refPolicy2ndPass: imagev1.ReflectNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return ""
+			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: images1stPass["v1.1.1"].String(),
+				}
 			},
 		},
 		{
 			name:             "unsetting 'IfNotPresent' policy removes digest",
-			refPolicy1stPass: polIfNotPresent,
-			refPolicy2ndPass: polNever,
+			refPolicy1stPass: imagev1.ReflectIfNotPresent,
+			refPolicy2ndPass: imagev1.ReflectNever,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return ""
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: images1stPass["v1.1.1"].String(),
+				}
+			},
 		},
 		{
 			name:             "changing 'IfNotPresent' to 'Always' sets new digest",
-			refPolicy1stPass: polIfNotPresent,
-			refPolicy2ndPass: polAlways,
+			refPolicy1stPass: imagev1.ReflectIfNotPresent,
+			refPolicy2ndPass: imagev1.ReflectAlways,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return images2ndPass["v1.1.1"].String()
 			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return &imagev1.ImageRef{
+					Name:   imgRepo,
+					Tag:    "v1.1.1",
+					Digest: images1stPass["v1.1.1"].String(),
+				}
+			},
 		},
 		{
 			name:             "changing 'Always' to 'IfNotPresent' leaves digest untouched",
-			refPolicy1stPass: polAlways,
-			refPolicy2ndPass: polIfNotPresent,
+			refPolicy1stPass: imagev1.ReflectAlways,
+			refPolicy2ndPass: imagev1.ReflectIfNotPresent,
 			digest1stPass: func() string {
 				return images1stPass["v1.1.1"].String()
 			},
 			digest2ndPass: func() string {
 				return images1stPass["v1.1.1"].String()
+			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return nil
+			},
+		},
+		{
+			name:                "selecting same tag with different policy leaves observedPreviousRef empty",
+			refPolicy1stPass:    imagev1.ReflectIfNotPresent,
+			semVerPolicy2ndPass: "=v1.1.1",
+			refPolicy2ndPass:    imagev1.ReflectIfNotPresent,
+			digest1stPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			digest2ndPass: func() string {
+				return images1stPass["v1.1.1"].String()
+			},
+			previousRef2ndPass: func() *imagev1.ImageRef {
+				return nil
 			},
 		},
 	}
@@ -478,6 +556,8 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 
 			g.Expect(imagePol.Status.LatestRef.Digest).
 				To(Equal(tt.digest1stPass()), "unexpected 1st pass digest in status")
+			g.Expect(imagePol.Status.ObservedPreviousRef).To(BeNil(),
+				"observedPreviousRef should always be nil after a single pass")
 
 			// Now, change the policy (if the test desires it) and overwrite the existing latest tag with a new image
 
@@ -514,9 +594,10 @@ func TestImagePolicyReconciler_digestReflection(t *testing.T) {
 			g.Expect(
 				c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol),
 			).To(Succeed(), "failed getting image policy")
-
 			g.Expect(imagePol.Status.LatestRef.Digest).
 				To(Equal(tt.digest2ndPass()), "unexpected 2nd pass digest in status")
+			g.Expect(imagePol.Status.ObservedPreviousRef).To(Equal(tt.previousRef2ndPass()),
+				"unexpected content in .status.observedPreviousRef")
 		})
 	}
 }

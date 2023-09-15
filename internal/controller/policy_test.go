@@ -223,6 +223,10 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 						pol.Status.LatestRef != nil
 				}, timeout, interval).Should(BeTrue())
 				g.Expect(pol.Status.LatestRef.String()).To(Equal(imgRepo + tt.wantImageTag))
+				g.Expect(pol.Status.ObservedPreviousImage).To(Equal(""),
+					"single reconciliation should leave status.observedPreviousImage empty")
+				g.Expect(pol.Status.ObservedPreviousRef).To(BeNil(),
+					"single reconciliation should leave status.observedPreviousRef nil")
 			} else {
 				g.Eventually(func() bool {
 					err := testEnv.Get(ctx, polName, &pol)
@@ -238,6 +242,7 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 			checker.WithT(g).CheckErr(ctx, &pol)
 
 			g.Expect(testEnv.Delete(ctx, &pol)).To(Succeed())
+			g.Expect(testEnv.Delete(ctx, &repo)).To(Succeed())
 		})
 	}
 }
