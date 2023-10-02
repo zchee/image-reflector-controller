@@ -79,6 +79,95 @@ func TestImagePolicyReconciler_deleteBeforeFinalizer(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+func TestStatusMigrationToImageRef(t *testing.T) {
+	g := NewWithT(t)
+
+	s := runtime.NewScheme()
+	utilruntime.Must(imagev1.AddToScheme(s))
+	utilruntime.Must(corev1.AddToScheme(s))
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "imagepolicy-" + randStringRunes(5),
+		},
+	}
+
+	imageRepo := &imagev1.ImageRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns.Name,
+			Name:      "status-migration-test",
+		},
+		Spec: imagev1.ImageRepositorySpec{
+			Image: "ghcr.io/stefanprodan/podinfo",
+		},
+		Status: imagev1.ImageRepositoryStatus{
+			LastScanResult: &imagev1.ScanResult{
+				TagCount:   3,
+				LatestTags: []string{"1.0.0", "1.1.0", "2.0.0"},
+			},
+		},
+	}
+	imagePol := &imagev1.ImagePolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:  ns.Name,
+			Name:       "status-migration-test",
+			Generation: 1,
+			Finalizers: []string{imagev1.ImageFinalizer},
+		},
+		Spec: imagev1.ImagePolicySpec{
+			ImageRepositoryRef: meta.NamespacedObjectReference{
+				Name: imageRepo.Name,
+			},
+			Policy: imagev1.ImagePolicyChoice{
+				SemVer: &imagev1.SemVerPolicy{
+					Range: "1.0",
+				},
+			},
+		},
+		Status: imagev1.ImagePolicyStatus{
+			LatestImage: "ghcr.io/stefanprodan/podinfo:1.0.0",
+		},
+	}
+
+	c := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(ns, imageRepo, imagePol).
+		WithStatusSubresource(imagePol).
+		Build()
+
+	r := &ImagePolicyReconciler{
+		EventRecorder: record.NewFakeRecorder(32),
+		Client:        c,
+		Database:      &mockDatabase{TagData: imageRepo.Status.LastScanResult.LatestTags},
+		AuthOptionsGetter: registry.NewAuthOptionsGetter(c, login.ProviderOptions{
+			AwsAutoLogin:   false,
+			AzureAutoLogin: false,
+			GcpAutoLogin:   false,
+		}),
+	}
+	res, err := r.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: ns.Name,
+			Name:      imagePol.Name,
+		},
+	})
+
+	g.Expect(err).NotTo(HaveOccurred(), "reconciliation failed")
+	g.Expect(res).To(Equal(ctrl.Result{}))
+
+	g.Expect(c.Get(context.Background(), client.ObjectKeyFromObject(imagePol), imagePol)).
+		To(Succeed(), "failed getting image policy")
+
+	g.Expect(imagePol.Status.LatestImage).To(Equal("ghcr.io/stefanprodan/podinfo:1.0.0"), "unexpected latest image")
+	g.Expect(imagePol.Status.LatestRef).To(Equal(&imagev1.ImageRef{
+		Name:   "ghcr.io/stefanprodan/podinfo",
+		Tag:    "1.0.0",
+		Digest: "",
+	}), "unexpected latest ref")
+	g.Expect(imagePol.Status.ObservedPreviousImage).To(BeEmpty(), "unexpected observed previous image")
+	g.Expect(imagePol.Status.ObservedPreviousRef).To(BeNil(), "unexpected observed previous ref")
+}
+
 func TestImagePolicyReconciler_getImageRepository(t *testing.T) {
 	testImageRepoName := "test-repo"
 	testNamespace1 := "test-ns1" // Default namespace of ImagePolicy.

@@ -349,6 +349,49 @@ specific ImagePolicy, e.g.
 
 ## ImagePolicy Status
 
+### Latest Image
+
+**Warning:** This field is deprecated in favor of `.status.latestRef.image` and will be
+removed in a future release.
+
+The ImagePolicy reports the latest select image from the ImageRepository tags in
+`.status.latestImage` for the resource.
+
+Example:
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: <policy-name>
+status:
+  latestImage: ghcr.io/stefanprodan/podinfo:5.1.4
+```
+
+### Observed Previous Image
+
+**Warning:** This field is deprecated in favor of `.status.observedPreviousRef.image`
+and will be removed in a future release.
+
+The ImagePolicy reports the previously observed latest image in
+`.status.observedPreviousImage` for the resource. This is used by the
+ImagePolicy to determine an upgrade path of an ImagePolicy update. This field
+is reset when the ImagePolicy fails due to some reason to be able to distinguish
+between a failure recovery and a genuine latest image upgrade.
+
+Example:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: <policy-name>
+status:
+  latestImage: ghcr.io/stefanprodan/podinfo:6.2.1
+  observedPreviousImage: ghcr.io/stefanprodan/podinfo:5.1.4
+```
+
 ### Latest Ref
 
 The ImagePolicy reports the latest selected image from the ImageRepository tags in

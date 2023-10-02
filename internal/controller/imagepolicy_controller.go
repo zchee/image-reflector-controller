@@ -332,7 +332,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	// there's a failure and a subsequent recovery from it. This behavior helps
 	// avoid creating an update event as there's no previous image to infer
 	// from. Recovery from a failure shouldn't result in an update event.
-	if oldObj.Status.LatestRef == nil ||
+	if oldObj.Status.LatestRef != nil &&
 		*oldObj.Status.LatestRef != *obj.Status.LatestRef {
 		obj.Status.ObservedPreviousImage = oldObj.Status.LatestImage
 		obj.Status.ObservedPreviousRef = oldObj.Status.LatestRef.DeepCopy()
