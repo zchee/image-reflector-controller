@@ -232,7 +232,7 @@ spec:
             properties:
               digestReflectionPolicy:
                 default: Never
-                description: DigestReflectionPolicy governs the setting of the `.status.latestDigest`
+                description: DigestReflectionPolicy governs the setting of the `.status.latestRef.digest`
                   field.
                 enum:
                 - Always
