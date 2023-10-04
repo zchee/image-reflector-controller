@@ -141,7 +141,7 @@ ReflectionPolicy
 </em>
 </td>
 <td>
-<p>DigestReflectionPolicy governs the setting of the <code>.status.latestDigest</code> field.</p>
+<p>DigestReflectionPolicy governs the setting of the <code>.status.latestRef.digest</code> field.</p>
 </td>
 </tr>
 </table>
@@ -300,7 +300,7 @@ ReflectionPolicy
 </em>
 </td>
 <td>
-<p>DigestReflectionPolicy governs the setting of the <code>.status.latestDigest</code> field.</p>
+<p>DigestReflectionPolicy governs the setting of the <code>.status.latestRef.digest</code> field.</p>
 </td>
 </tr>
 </tbody>
