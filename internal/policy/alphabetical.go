@@ -51,12 +51,12 @@ func NewAlphabetical(order string) (*Alphabetical, error) {
 }
 
 // Latest returns latest version from a provided list of strings
-func (p *Alphabetical) Latest(versions []string) (string, error) {
+func (p *Alphabetical) Latest(versions []Tag) (Tag, error) {
 	if len(versions) == 0 {
-		return "", fmt.Errorf("version list argument cannot be empty")
+		return Tag{}, fmt.Errorf("version list argument cannot be empty")
 	}
 
-	var sorted sort.StringSlice = versions
+	sorted := ByName(versions)
 	if p.Order == AlphabeticalOrderDesc {
 		sort.Sort(sorted)
 	} else {

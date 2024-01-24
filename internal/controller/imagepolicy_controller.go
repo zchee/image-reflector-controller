@@ -314,7 +314,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	// Write the observations on status.
-	obj.Status.LatestImage = repo.Spec.Image + ":" + latest
+	obj.Status.LatestImage = repo.Spec.Image + ":" + latest.Name
 	// If the old latest image and new latest image don't match, set the old
 	// image as the observed previous image.
 	// NOTE: The following allows the previous image to be set empty when
@@ -337,7 +337,7 @@ func (r *ImagePolicyReconciler) reconcile(ctx context.Context, sp *patch.SerialP
 	}
 
 	resultImage = repo.Spec.Image
-	resultTag = latest
+	resultTag = latest.Name
 
 	conditions.Delete(obj, meta.ReadyCondition)
 
@@ -383,34 +383,34 @@ func (r *ImagePolicyReconciler) getImageRepository(ctx context.Context, obj *ima
 
 // applyPolicy reads the tags of the given repository from the internal database
 // and applies the tag filters and constraints to return the latest image.
-func (r *ImagePolicyReconciler) applyPolicy(ctx context.Context, obj *imagev1.ImagePolicy, repo *imagev1.ImageRepository) (string, error) {
+func (r *ImagePolicyReconciler) applyPolicy(ctx context.Context, obj *imagev1.ImagePolicy, repo *imagev1.ImageRepository) (policy.Tag, error) {
 	policer, err := policy.PolicerFromSpec(obj.Spec.Policy)
 	if err != nil {
-		return "", errInvalidPolicy{err: fmt.Errorf("invalid policy: %w", err)}
+		return policy.Tag{}, errInvalidPolicy{err: fmt.Errorf("invalid policy: %w", err)}
 	}
 
 	// Read tags from database, apply and filter is configured and compute the
 	// result.
 	tags, err := r.Database.Tags(repo.Status.CanonicalImageName)
 	if err != nil {
-		return "", fmt.Errorf("failed to read tags from database: %w", err)
+		return policy.Tag{}, fmt.Errorf("failed to read tags from database: %w", err)
 	}
 
 	if len(tags) == 0 {
-		return "", errNoTagsInDatabase
+		return policy.Tag{}, errNoTagsInDatabase
 	}
 
 	// Apply tag filter.
 	if obj.Spec.FilterTags != nil {
 		filter, err := policy.NewRegexFilter(obj.Spec.FilterTags.Pattern, obj.Spec.FilterTags.Extract)
 		if err != nil {
-			return "", errInvalidPolicy{err: fmt.Errorf("failed to filter tags: %w", err)}
+			return policy.Tag{}, errInvalidPolicy{err: fmt.Errorf("failed to filter tags: %w", err)}
 		}
 		filter.Apply(tags)
 		tags = filter.Items()
 		latest, err := policer.Latest(tags)
 		if err != nil {
-			return "", err
+			return policy.Tag{}, err
 		}
 		return filter.GetOriginalTag(latest), nil
 	}

@@ -34,6 +34,8 @@ func PolicerFromSpec(choice imagev1.ImagePolicyChoice) (Policer, error) {
 		p, err = NewAlphabetical(strings.ToUpper(choice.Alphabetical.Order))
 	case choice.Numerical != nil:
 		p, err = NewNumerical(strings.ToUpper(choice.Numerical.Order))
+	case choice.Newest != nil:
+		p, err = NewNewest(strings.ToUpper(choice.Newest.Order))
 	default:
 		return nil, fmt.Errorf("given ImagePolicyChoice object is invalid")
 	}

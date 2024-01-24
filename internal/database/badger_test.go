@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/dgraph-io/badger/v3"
+
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 )
 
 const testRepo = "testing/testing"
@@ -31,14 +33,14 @@ func TestGetWithUnknownRepo(t *testing.T) {
 	tags, err := db.Tags(testRepo)
 	fatalIfError(t, err)
 
-	if !reflect.DeepEqual([]string{}, tags) {
+	if !reflect.DeepEqual([]policy.Tag{}, tags) {
 		t.Fatalf("Tags() for unknown repo got %#v, want %#v", tags, []string{})
 	}
 }
 
 func TestSetTags(t *testing.T) {
 	db := createBadgerDatabase(t)
-	tags := []string{"latest", "v0.0.1", "v0.0.2"}
+	tags := []policy.Tag{{Name: "latest"}, {Name: "v0.0.1"}, {Name: "v0.0.2"}}
 
 	fatalIfError(t, db.SetTags(testRepo, tags))
 
@@ -51,8 +53,8 @@ func TestSetTags(t *testing.T) {
 
 func TestSetTagsOverwrites(t *testing.T) {
 	db := createBadgerDatabase(t)
-	tags1 := []string{"latest", "v0.0.1", "v0.0.2"}
-	tags2 := []string{"latest", "v0.0.1", "v0.0.2", "v0.0.3"}
+	tags1 := []policy.Tag{{Name: "latest"}, {Name: "v0.0.1"}, {Name: "v0.0.2"}}
+	tags2 := []policy.Tag{{Name: "latest"}, {Name: "v0.0.1"}, {Name: "v0.0.2"}, {Name: "v0.0.3"}}
 	fatalIfError(t, db.SetTags(testRepo, tags1))
 
 	fatalIfError(t, db.SetTags(testRepo, tags2))
@@ -66,10 +68,10 @@ func TestSetTagsOverwrites(t *testing.T) {
 
 func TestGetOnlyFetchesForRepo(t *testing.T) {
 	db := createBadgerDatabase(t)
-	tags1 := []string{"latest", "v0.0.1", "v0.0.2"}
+	tags1 := []policy.Tag{{Name: "latest"}, {Name: "v0.0.1"}, {Name: "v0.0.2"}}
 	fatalIfError(t, db.SetTags(testRepo, tags1))
 	testRepo2 := "another/repo"
-	tags2 := []string{"v0.0.3", "v0.0.4"}
+	tags2 := []policy.Tag{{Name: "v0.0.3"}, {Name: "v0.0.4"}}
 	fatalIfError(t, db.SetTags(testRepo2, tags2))
 
 	loaded, err := db.Tags(testRepo)

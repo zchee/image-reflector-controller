@@ -56,37 +56,37 @@ func TestSemVer_Latest(t *testing.T) {
 	cases := []struct {
 		label           string
 		semverRange     string
-		versions        []string
-		expectedVersion string
+		versions        []Tag
+		expectedVersion Tag
 		expectErr       bool
 	}{
 		{
 			label:           "With valid format",
-			versions:        []string{"1.0.0", "1.0.0.1", "1.0.0p", "1.0.1", "1.2.0", "0.1.0"},
+			versions:        []Tag{{Name: "1.0.0"}, {Name: "1.0.0.1"}, {Name: "1.0.0p"}, {Name: "1.0.1"}, {Name: "1.2.0"}, {Name: "0.1.0"}},
 			semverRange:     "1.0.x",
-			expectedVersion: "1.0.1",
+			expectedVersion: Tag{Name: "1.0.1"},
 		},
 		{
 			label:           "With valid format prefix",
-			versions:        []string{"v1.2.3", "v1.0.0", "v0.1.0"},
+			versions:        []Tag{{Name: "v1.2.3"}, {Name: "v1.0.0"}, {Name: "v0.1.0"}},
 			semverRange:     "1.0.x",
-			expectedVersion: "v1.0.0",
+			expectedVersion: Tag{Name: "v1.0.0"},
 		},
 		{
 			label:       "With invalid format prefix",
-			versions:    []string{"b1.2.3", "b1.0.0", "b0.1.0"},
+			versions:    []Tag{{Name: "b1.2.3"}, {Name: "b1.0.0"}, {Name: "b0.1.0"}},
 			semverRange: "1.0.x",
 			expectErr:   true,
 		},
 		{
 			label:       "With empty list",
-			versions:    []string{},
+			versions:    []Tag{},
 			semverRange: "1.0.x",
 			expectErr:   true,
 		},
 		{
 			label:       "With non-matching version list",
-			versions:    []string{"1.2.0"},
+			versions:    []Tag{{Name: "1.2.0"}},
 			semverRange: "1.0.x",
 			expectErr:   true,
 		},

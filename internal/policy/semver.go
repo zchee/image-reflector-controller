@@ -44,14 +44,14 @@ func NewSemVer(r string) (*SemVer, error) {
 }
 
 // Latest returns latest version from a provided list of strings
-func (p *SemVer) Latest(versions []string) (string, error) {
+func (p *SemVer) Latest(versions []Tag) (Tag, error) {
 	if len(versions) == 0 {
-		return "", fmt.Errorf("version list argument cannot be empty")
+		return Tag{}, fmt.Errorf("version list argument cannot be empty")
 	}
 
 	var latestVersion *semver.Version
 	for _, tag := range versions {
-		if v, err := version.ParseVersion(tag); err == nil {
+		if v, err := version.ParseVersion(tag.Name); err == nil {
 			if p.constraint.Check(v) && (latestVersion == nil || v.GreaterThan(latestVersion)) {
 				latestVersion = v
 			}
@@ -59,7 +59,7 @@ func (p *SemVer) Latest(versions []string) (string, error) {
 	}
 
 	if latestVersion != nil {
-		return latestVersion.Original(), nil
+		return Tag{Name: latestVersion.Original()}, nil
 	}
-	return "", fmt.Errorf("unable to determine latest version from provided list")
+	return Tag{}, fmt.Errorf("unable to determine latest version from provided list")
 }

@@ -51,17 +51,17 @@ func NewNumerical(order string) (*Numerical, error) {
 }
 
 // Latest returns latest version from a provided list of strings
-func (p *Numerical) Latest(versions []string) (string, error) {
+func (p *Numerical) Latest(versions []Tag) (Tag, error) {
 	if len(versions) == 0 {
-		return "", fmt.Errorf("version list argument cannot be empty")
+		return Tag{}, fmt.Errorf("version list argument cannot be empty")
 	}
 
-	var latest string
+	var latest Tag
 	var pv float64
 	for i, version := range versions {
-		cv, err := strconv.ParseFloat(version, 64)
+		cv, err := strconv.ParseFloat(version.Name, 64)
 		if err != nil {
-			return "", fmt.Errorf("failed to parse invalid numeric value '%s'", version)
+			return Tag{}, fmt.Errorf("failed to parse invalid numeric value '%s'", version)
 		}
 
 		switch {

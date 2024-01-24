@@ -63,62 +63,62 @@ func TestNumerical_Latest(t *testing.T) {
 	cases := []struct {
 		label           string
 		order           string
-		versions        []string
-		expectedVersion string
+		versions        []Tag
+		expectedVersion Tag
 		expectErr       bool
 	}{
 		{
 			label:           "With unordered list of integers ascending",
-			versions:        shuffle([]string{"-62", "-88", "73", "72", "15", "16", "15", "29", "-33", "-91"}),
-			expectedVersion: "73",
+			versions:        shuffle([]Tag{{Name: "-62"}, {Name: "-88"}, {Name: "73"}, {Name: "72"}, {Name: "15"}, {Name: "16"}, {Name: "15"}, {Name: "29"}, {Name: "-33"}, {Name: "-91"}}),
+			expectedVersion: Tag{Name: "73"},
 		},
 		{
 			label:           "With unordered list of integers descending",
-			versions:        shuffle([]string{"5", "-8", "-78", "25", "70", "-4", "80", "92", "-20", "-24"}),
+			versions:        shuffle([]Tag{{Name: "5"}, {Name: "-8"}, {Name: "-78"}, {Name: "25"}, {Name: "70"}, {Name: "-4"}, {Name: "80"}, {Name: "92"}, {Name: "-20"}, {Name: "-24"}}),
 			order:           NumericalOrderDesc,
-			expectedVersion: "-78",
+			expectedVersion: Tag{Name: "-78"},
 		},
 		{
 			label:           "With unordered list of floats ascending",
-			versions:        shuffle([]string{"47.40896403322944", "-27.8520927455902", "-27.930666514224427", "-31.352485948094568", "-50.41072694704882", "-21.962849842263736", "24.71884721436865", "-39.99177354004344", "53.47333823144817", "3.2008658570411086"}),
-			expectedVersion: "53.47333823144817",
+			versions:        shuffle([]Tag{{Name: "47.40896403322944"}, {Name: "-27.8520927455902"}, {Name: "-27.930666514224427"}, {Name: "-31.352485948094568"}, {Name: "-50.41072694704882"}, {Name: "-21.962849842263736"}, {Name: "24.71884721436865"}, {Name: "-39.99177354004344"}, {Name: "53.47333823144817"}, {Name: "3.2008658570411086"}}),
+			expectedVersion: Tag{Name: "53.47333823144817"},
 		},
 		{
 			label:           "With unordered list of floats descending",
-			versions:        shuffle([]string{"-65.27202780220686", "57.82948329142309", "22.40184684363291", "-86.36934305697784", "-90.29082099756083", "-12.041712603564264", "77.70488240399305", "-38.98425003883552", "16.06867070412028", "53.735674335181216"}),
+			versions:        shuffle([]Tag{{Name: "-65.27202780220686"}, {Name: "57.82948329142309"}, {Name: "22.40184684363291"}, {Name: "-86.36934305697784"}, {Name: "-90.29082099756083"}, {Name: "-12.041712603564264"}, {Name: "77.70488240399305"}, {Name: "-38.98425003883552"}, {Name: "16.06867070412028"}, {Name: "53.735674335181216"}}),
 			order:           NumericalOrderDesc,
-			expectedVersion: "-90.29082099756083",
+			expectedVersion: Tag{Name: "-90.29082099756083"},
 		},
 		{
 			label:           "With Unix Timestamps ascending",
-			versions:        shuffle([]string{"1606234201", "1606364286", "1606334092", "1606334284", "1606334201"}),
-			expectedVersion: "1606364286",
+			versions:        shuffle([]Tag{{Name: "1606234201"}, {Name: "1606364286"}, {Name: "1606334092"}, {Name: "1606334284"}, {Name: "1606334201"}}),
+			expectedVersion: Tag{Name: "1606364286"},
 		},
 		{
 			label:           "With Unix Timestamps descending",
-			versions:        shuffle([]string{"1606234201", "1606364286", "1606334092", "1606334284", "1606334201"}),
+			versions:        shuffle([]Tag{{Name: "1606234201"}, {Name: "1606364286"}, {Name: "1606334092"}, {Name: "1606334284"}, {Name: "1606334201"}}),
 			order:           NumericalOrderDesc,
-			expectedVersion: "1606234201",
+			expectedVersion: Tag{Name: "1606234201"},
 		},
 		{
 			label:           "With single value ascending",
-			versions:        []string{"1"},
-			expectedVersion: "1",
+			versions:        []Tag{{Name: "1"}},
+			expectedVersion: Tag{Name: "1"},
 		},
 		{
 			label:           "With single value descending",
-			versions:        []string{"1"},
+			versions:        []Tag{{Name: "1"}},
 			order:           NumericalOrderDesc,
-			expectedVersion: "1",
+			expectedVersion: Tag{Name: "1"},
 		},
 		{
 			label:     "With invalid numerical value",
-			versions:  []string{"0", "1a", "b"},
+			versions:  []Tag{{Name: "0"}, {Name: "1a"}, {Name: "b"}},
 			expectErr: true,
 		},
 		{
 			label:     "Empty version list",
-			versions:  []string{},
+			versions:  []Tag{},
 			expectErr: true,
 		},
 	}
@@ -144,7 +144,7 @@ func TestNumerical_Latest(t *testing.T) {
 	}
 }
 
-func shuffle(list []string) []string {
+func shuffle(list []Tag) []Tag {
 	rand.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
 	return list
 }

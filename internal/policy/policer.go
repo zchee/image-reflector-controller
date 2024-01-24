@@ -16,7 +16,28 @@ limitations under the License.
 
 package policy
 
+import (
+	"time"
+)
+
+type Tag struct {
+	Name    string
+	Created time.Time
+}
+
+type ByName []Tag
+
+func (x ByName) Len() int           { return len(x) }
+func (x ByName) Less(i, j int) bool { return x[i].Name < x[j].Name }
+func (x ByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+type ByCreated []Tag
+
+func (x ByCreated) Len() int           { return len(x) }
+func (x ByCreated) Less(i, j int) bool { return x[i].Created.Unix() < x[j].Created.Unix() }
+func (x ByCreated) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
 // Policer is an interface representing a policy implementation type
 type Policer interface {
-	Latest([]string) (string, error)
+	Latest([]Tag) (Tag, error)
 }

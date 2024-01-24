@@ -62,62 +62,62 @@ func TestAlphabetical_Latest(t *testing.T) {
 	cases := []struct {
 		label           string
 		order           string
-		versions        []string
-		expectedVersion string
+		versions        []Tag
+		expectedVersion Tag
 		expectErr       bool
 	}{
 		{
 			label:           "With Ubuntu CalVer",
-			versions:        []string{"16.04", "16.04.1", "16.10", "20.04", "20.10"},
-			expectedVersion: "20.10",
+			versions:        []Tag{{Name: "16.04"}, {Name: "16.04.1"}, {Name: "16.10"}, {Name: "20.04"}, {Name: "20.10"}},
+			expectedVersion: Tag{Name: "20.10"},
 		},
 		{
 			label:           "With Ubuntu CalVer descending",
-			versions:        []string{"16.04", "16.04.1", "16.10", "20.04", "20.10"},
+			versions:        []Tag{{Name: "16.04"}, {Name: "16.04.1"}, {Name: "16.10"}, {Name: "20.04"}, {Name: "20.10"}},
 			order:           AlphabeticalOrderDesc,
-			expectedVersion: "16.04",
+			expectedVersion: Tag{Name: "16.04"},
 		},
 		{
 			label:           "With Ubuntu code names",
-			versions:        []string{"xenial", "yakkety", "zesty", "artful", "bionic"},
-			expectedVersion: "zesty",
+			versions:        []Tag{{Name: "xenial"}, {Name: "yakkety"}, {Name: "zesty"}, {Name: "artful"}, {Name: "bionic"}},
+			expectedVersion: Tag{Name: "zesty"},
 		},
 		{
 			label:           "With Ubuntu code names descending",
-			versions:        []string{"xenial", "yakkety", "zesty", "artful", "bionic"},
+			versions:        []Tag{{Name: "xenial"}, {Name: "yakkety"}, {Name: "zesty"}, {Name: "artful"}, {Name: "bionic"}},
 			order:           AlphabeticalOrderDesc,
-			expectedVersion: "artful",
+			expectedVersion: Tag{Name: "artful"},
 		},
 		{
 			label:           "With Timestamps",
-			versions:        []string{"1606234201", "1606364286", "1606334092", "1606334284", "1606334201"},
-			expectedVersion: "1606364286",
+			versions:        []Tag{{Name: "1606234201"}, {Name: "1606364286"}, {Name: "1606334092"}, {Name: "1606334284"}, {Name: "1606334201"}},
+			expectedVersion: Tag{Name: "1606364286"},
 		},
 		{
 			label:           "With Unix Timestamps desc",
-			versions:        []string{"1606234201", "1606364286", "1606334092", "1606334284", "1606334201"},
+			versions:        []Tag{{Name: "1606234201"}, {Name: "1606364286"}, {Name: "1606334092"}, {Name: "1606334284"}, {Name: "1606334201"}},
 			order:           AlphabeticalOrderDesc,
-			expectedVersion: "1606234201",
+			expectedVersion: Tag{Name: "1606234201"},
 		},
 		{
 			label:           "With Unix Timestamps prefix",
-			versions:        []string{"rel-1606234201", "rel-1606364286", "rel-1606334092", "rel-1606334284", "rel-1606334201"},
-			expectedVersion: "rel-1606364286",
+			versions:        []Tag{{Name: "rel-1606234201"}, {Name: "rel-1606364286"}, {Name: "rel-1606334092"}, {Name: "rel-1606334284"}, {Name: "rel-1606334201"}},
+			expectedVersion: Tag{Name: "rel-1606364286"},
 		},
 		{
 			label:           "With RFC3339",
-			versions:        []string{"2021-01-08T21-18-21Z", "2020-05-08T21-18-21Z", "2021-01-08T19-20-00Z", "1990-01-08T00-20-00Z", "2023-05-08T00-20-00Z"},
-			expectedVersion: "2023-05-08T00-20-00Z",
+			versions:        []Tag{{Name: "2021-01-08T21-18-21Z"}, {Name: "2020-05-08T21-18-21Z"}, {Name: "2021-01-08T19-20-00Z"}, {Name: "1990-01-08T00-20-00Z"}, {Name: "2023-05-08T00-20-00Z"}},
+			expectedVersion: Tag{Name: "2023-05-08T00-20-00Z"},
 		},
 		{
 			label:           "With RFC3339 desc",
-			versions:        []string{"2021-01-08T21-18-21Z", "2020-05-08T21-18-21Z", "2021-01-08T19-20-00Z", "1990-01-08T00-20-00Z", "2023-05-08T00-20-00Z"},
+			versions:        []Tag{{Name: "2021-01-08T21-18-21Z"}, {Name: "2020-05-08T21-18-21Z"}, {Name: "2021-01-08T19-20-00Z"}, {Name: "1990-01-08T00-20-00Z"}, {Name: "2023-05-08T00-20-00Z"}},
 			order:           AlphabeticalOrderDesc,
-			expectedVersion: "1990-01-08T00-20-00Z",
+			expectedVersion: Tag{Name: "1990-01-08T00-20-00Z"},
 		},
 		{
 			label:     "Empty version list",
-			versions:  []string{},
+			versions:  []Tag{},
 			expectErr: true,
 		},
 	}

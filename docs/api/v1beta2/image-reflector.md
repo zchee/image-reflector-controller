@@ -211,6 +211,20 @@ NumericalPolicy
 <p>Numerical set of rules to use for numerical ordering of the tags.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>newest</code><br>
+<em>
+<a href="#image.toolkit.fluxcd.io/v1beta2.NewestPolicy">
+NewestPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Newest set of rules to use for the creation date ordering of the tags.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -855,6 +869,41 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <p>
 (Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="image.toolkit.fluxcd.io/v1beta2.NewestPolicy">NewestPolicy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#image.toolkit.fluxcd.io/v1beta2.ImagePolicyChoice">ImagePolicyChoice</a>)
+</p>
+<p>NewestPolicy specifies a creation date ordering policy.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>order</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Order specifies the sorting order of the tags. Based on the image build
+creation time, ascending order would select oldest built tags, and descending order
+would select the newly built tags.</p>
 </td>
 </tr>
 </tbody>

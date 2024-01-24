@@ -26,71 +26,71 @@ import (
 func TestRegexFilter(t *testing.T) {
 	cases := []struct {
 		label    string
-		tags     []string
+		tags     []Tag
 		pattern  string
 		extract  string
-		expected []string
+		expected []Tag
 	}{
 		{
 			label:    "none",
-			tags:     []string{"a"},
-			expected: []string{"a"},
+			tags:     []Tag{{Name: "a"}},
+			expected: []Tag{{Name: "a"}},
 		},
 		{
 			label:    "valid pattern",
-			tags:     []string{"ver1", "ver2", "ver3", "rel1"},
+			tags:     []Tag{{Name: "ver1"}, {Name: "ver2"}, {Name: "ver3"}, {Name: "rel1"}},
 			pattern:  "^ver",
-			expected: []string{"ver1", "ver2", "ver3"},
+			expected: []Tag{{Name: "ver1"}, {Name: "ver2"}, {Name: "ver3"}},
 		},
 		{
 			label:    "valid pattern with capture group",
-			tags:     []string{"ver1", "ver2", "ver3", "rel1"},
+			tags:     []Tag{{Name: "ver1"}, {Name: "ver2"}, {Name: "ver3"}, {Name: "rel1"}},
 			pattern:  `ver(\d+)`,
 			extract:  `$1`,
-			expected: []string{"1", "2", "3"},
+			expected: []Tag{{Name: "1"}, {Name: "2"}, {Name: "3"}},
 		},
 		{
 			label: "valid pattern (complex regex 1)",
-			tags: []string{
-				"123-123.123.abcd123-debug",
-				"123-123.123.abcd123",
-				"123-123.123.abcd456-debug",
-				"123-123.123.abcd456",
+			tags: []Tag{
+				{Name: "123-123.123.abcd123-debug"},
+				{Name: "123-123.123.abcd123"},
+				{Name: "123-123.123.abcd456-debug"},
+				{Name: "123-123.123.abcd456"},
 			},
 			pattern: `^(123-[0-9]+\.[0-9]+\.[a-z0-9]+-debug)`,
-			expected: []string{
-				"123-123.123.abcd123-debug",
-				"123-123.123.abcd456-debug",
+			expected: []Tag{
+				{Name: "123-123.123.abcd123-debug"},
+				{Name: "123-123.123.abcd456-debug"},
 			},
 		},
 		{
 			label: "valid pattern with capture group (complex regex 2)",
-			tags: []string{
-				"123-123.123.abcd123-debug",
-				"123-123.123.abcd123",
-				"123-123.123.abcd456-debug",
-				"123-123.123.abcd456",
+			tags: []Tag{
+				{Name: "123-123.123.abcd123-debug"},
+				{Name: "123-123.123.abcd123"},
+				{Name: "123-123.123.abcd456-debug"},
+				{Name: "123-123.123.abcd456"},
 			},
 			pattern: `^(?P<tag>123-[0-9]+\.[0-9]+\.[a-z0-9]+[^-debug])`,
 			extract: `$tag`,
-			expected: []string{
-				"123-123.123.abcd123",
-				"123-123.123.abcd456",
+			expected: []Tag{
+				{Name: "123-123.123.abcd123"},
+				{Name: "123-123.123.abcd456"},
 			},
 		},
 		{
 			label: "valid pattern with capture group (complex regex 3)",
-			tags: []string{
-				"123-123.123.abcd123-debug",
-				"123-123.123.abcd123",
-				"123-123.123.abcd456-debug",
-				"123-123.123.abcd456",
+			tags: []Tag{
+				{Name: "123-123.123.abcd123-debug"},
+				{Name: "123-123.123.abcd123"},
+				{Name: "123-123.123.abcd456-debug"},
+				{Name: "123-123.123.abcd456"},
 			},
 			pattern: `^(?P<tag>123-[0-9]+\.[0-9]+\.[a-z0-9]+$)`,
 			extract: `$tag`,
-			expected: []string{
-				"123-123.123.abcd123",
-				"123-123.123.abcd456",
+			expected: []Tag{
+				{Name: "123-123.123.abcd123"},
+				{Name: "123-123.123.abcd456"},
 			},
 		},
 	}
@@ -104,7 +104,7 @@ func TestRegexFilter(t *testing.T) {
 
 			f.Apply(tt.tags)
 			r := f.Items()
-			sort.Strings(r)
+			sort.Sort(ByName(r))
 
 			g.Expect(r).To(Equal(tt.expected))
 		})

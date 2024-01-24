@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,7 @@ import (
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/database"
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 	// +kubebuilder:scaffold:imports
 )
@@ -50,7 +52,7 @@ func TestImagePolicyReconciler_crossNamespaceRefsDisallowed(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
-	versions := []string{"1.0.1", "1.0.2", "1.1.0-alpha"}
+	versions := []policy.Tag{{Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}}
 	imgRepo, err := test.LoadImages(registryServer, "test-semver-policy-"+randStringRunes(5), versions)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -127,16 +129,18 @@ func TestImagePolicyReconciler_crossNamespaceRefsDisallowed(t *testing.T) {
 }
 
 func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
+	now := time.Now()
+
 	tests := []struct {
 		name         string
-		versions     []string
+		versions     []policy.Tag
 		policy       imagev1.ImagePolicyChoice
 		wantImageTag string
 		wantFailure  bool
 	}{
 		{
 			name:     "using SemVerPolicy",
-			versions: []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"},
+			versions: []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}},
 			policy: imagev1.ImagePolicyChoice{
 				SemVer: &imagev1.SemVerPolicy{
 					Range: "1.0.x",
@@ -146,7 +150,7 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 		},
 		{
 			name:     "using SemVerPolicy with invalid range",
-			versions: []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"},
+			versions: []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}},
 			policy: imagev1.ImagePolicyChoice{
 				SemVer: &imagev1.SemVerPolicy{
 					Range: "*-*",
@@ -156,11 +160,27 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 		},
 		{
 			name:     "using AlphabeticalPolicy",
-			versions: []string{"xenial", "yakkety", "zesty", "artful", "bionic"},
+			versions: []policy.Tag{{Name: "xenial"}, {Name: "yakkety"}, {Name: "zesty"}, {Name: "artful"}, {Name: "bionic"}},
 			policy: imagev1.ImagePolicyChoice{
 				Alphabetical: &imagev1.AlphabeticalPolicy{},
 			},
 			wantImageTag: ":zesty",
+		},
+		{
+			name: "using RewestPolicy",
+			versions: []policy.Tag{
+				{Name: "0.1.0", Created: now.Add(1 * time.Hour)},
+				{Name: "0.1.1", Created: now.Add(2 * time.Hour)},
+				{Name: "0.2.0", Created: now.Add(3 * time.Hour)},
+				{Name: "1.0.0", Created: now.Add(4 * time.Hour)},
+				{Name: "1.0.1", Created: now.Add(5 * time.Hour)},
+				{Name: "1.0.2", Created: now.Add(6 * time.Hour)},
+				{Name: "1.1.0-alpha", Created: now.Add(7 * time.Hour)},
+			},
+			policy: imagev1.ImagePolicyChoice{
+				Newest: &imagev1.NewestPolicy{},
+			},
+			wantImageTag: ":1.1.0-alpha",
 		},
 	}
 
@@ -244,14 +264,14 @@ func TestImagePolicyReconciler_calculateImageFromRepoTags(t *testing.T) {
 func TestImagePolicyReconciler_filterTags(t *testing.T) {
 	tests := []struct {
 		name         string
-		versions     []string
+		versions     []policy.Tag
 		filterTags   *imagev1.TagFilter
 		wantImageTag string
 		wantFailure  bool
 	}{
 		{
 			name:     "valid regex",
-			versions: []string{"test-0.1.0", "test-0.1.1", "dev-0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"},
+			versions: []policy.Tag{{Name: "test-0.1.0"}, {Name: "test-0.1.1"}, {Name: "dev-0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}},
 			filterTags: &imagev1.TagFilter{
 				Pattern: "^test-(.*)$",
 				Extract: "$1",
@@ -260,7 +280,7 @@ func TestImagePolicyReconciler_filterTags(t *testing.T) {
 		},
 		{
 			name:     "invalid regex",
-			versions: []string{"test-0.1.0", "test-0.1.1", "dev-0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"},
+			versions: []policy.Tag{{Name: "test-0.1.0"}, {Name: "test-0.1.1"}, {Name: "dev-0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}},
 			filterTags: &imagev1.TagFilter{
 				Pattern: "^test-(.*",
 				Extract: "$1",
@@ -439,7 +459,7 @@ func TestImagePolicyReconciler_accessImageRepo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			versions := []string{"1.0.0", "1.0.1"}
+			versions := []policy.Tag{{Name: "1.0.0"}, {Name: "1.0.1"}}
 			imgRepo, err := test.LoadImages(registryServer, "acl-image-"+randStringRunes(5), versions)
 			g.Expect(err).ToNot(HaveOccurred())
 

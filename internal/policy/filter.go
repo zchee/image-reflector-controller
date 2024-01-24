@@ -23,7 +23,7 @@ import (
 
 // RegexFilter represents a regular expression filter
 type RegexFilter struct {
-	filtered map[string]string
+	filtered map[Tag]Tag
 
 	Regexp  *regexp.Regexp
 	Replace string
@@ -42,15 +42,15 @@ func NewRegexFilter(pattern string, replace string) (*RegexFilter, error) {
 }
 
 // Apply will construct the filtered list of tags based on the provided list of tags
-func (f *RegexFilter) Apply(list []string) {
-	f.filtered = map[string]string{}
+func (f *RegexFilter) Apply(list []Tag) {
+	f.filtered = map[Tag]Tag{}
 	for _, item := range list {
-		if submatches := f.Regexp.FindStringSubmatchIndex(item); len(submatches) > 0 {
+		if submatches := f.Regexp.FindStringSubmatchIndex(item.Name); len(submatches) > 0 {
 			tag := item
 			if f.Replace != "" {
 				result := []byte{}
-				result = f.Regexp.ExpandString(result, f.Replace, item, submatches)
-				tag = string(result)
+				result = f.Regexp.ExpandString(result, f.Replace, item.Name, submatches)
+				tag.Name = string(result)
 			}
 			f.filtered[tag] = item
 		}
@@ -58,8 +58,8 @@ func (f *RegexFilter) Apply(list []string) {
 }
 
 // Items returns the list of filtered tags
-func (f *RegexFilter) Items() []string {
-	var filtered []string
+func (f *RegexFilter) Items() []Tag {
+	var filtered []Tag
 	for k := range f.filtered {
 		filtered = append(filtered, k)
 	}
@@ -67,6 +67,6 @@ func (f *RegexFilter) Items() []string {
 }
 
 // GetOriginalTag returns the original tag before replace extraction
-func (f *RegexFilter) GetOriginalTag(tag string) string {
+func (f *RegexFilter) GetOriginalTag(tag Tag) Tag {
 	return f.filtered[tag]
 }

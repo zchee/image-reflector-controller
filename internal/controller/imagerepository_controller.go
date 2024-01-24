@@ -54,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/reconcile"
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/secret"
 )
 
@@ -512,7 +513,7 @@ func (r *ImageRepositoryReconciler) scan(ctx context.Context, obj *imagev1.Image
 
 	options = append(options, remote.WithContext(ctx))
 
-	tags, err := remote.List(ref.Context(), options...)
+	tags, err := r.getTags(ctx, ref, options)
 	if err != nil {
 		return 0, err
 	}
@@ -542,6 +543,45 @@ func (r *ImageRepositoryReconciler) scan(ctx context.Context, obj *imagev1.Image
 	}
 
 	return len(filteredTags), nil
+}
+
+func (r *ImageRepositoryReconciler) getTags(ctx context.Context, ref name.Reference, remoteOpts []remote.Option) ([]policy.Tag, error) {
+	puller, err := remote.NewPuller(remoteOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("remote.NewPuller: %w", err)
+	}
+
+	tags, err := puller.List(ctx, ref.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	var ptags []policy.Tag
+	for _, tag := range tags {
+		tagRef, err := name.ParseReference(ref.Context().Tag(tag).Name())
+		if err != nil {
+			return nil, err
+		}
+		desc, err := puller.Get(ctx, tagRef)
+		if err != nil {
+			return nil, err
+		}
+		img, err := desc.Image()
+		if err != nil {
+			return nil, err
+		}
+		cfg, err := img.ConfigFile()
+		if err != nil {
+			return nil, err
+		}
+
+		ptags = append(ptags, policy.Tag{
+			Name:    tag,
+			Created: cfg.Created.Time,
+		})
+	}
+
+	return ptags, nil
 }
 
 // reconcileDelete handles the deletion of the object.
@@ -597,7 +637,7 @@ func parseImageReference(url string, insecure bool) (name.Reference, error) {
 
 // filterOutTags filters the given tags through the given regular expression
 // patterns and returns a list of tags that don't match with the pattern.
-func filterOutTags(tags []string, patterns []string) ([]string, error) {
+func filterOutTags(tags []policy.Tag, patterns []string) ([]policy.Tag, error) {
 	// Compile all the regex first.
 	compiledRegexp := []*regexp.Regexp{}
 	for _, pattern := range patterns {
@@ -609,11 +649,11 @@ func filterOutTags(tags []string, patterns []string) ([]string, error) {
 	}
 
 	// Pass the tags through the compiled regex and collect the filtered tags.
-	filteredTags := []string{}
+	filteredTags := []policy.Tag{}
 	for _, tag := range tags {
 		match := false
 		for _, regex := range compiledRegexp {
-			if regex.MatchString(tag) {
+			if regex.MatchString(tag.Name) {
 				match = true
 				break
 			}
@@ -627,15 +667,19 @@ func filterOutTags(tags []string, patterns []string) ([]string, error) {
 
 // getLatestTags takes a slice of tags, sorts them in descending order of their
 // values and returns the 10 latest tags.
-func getLatestTags(tags []string) []string {
+func getLatestTags(tags []policy.Tag) []string {
 	var result []string
-	sort.SliceStable(tags, func(i, j int) bool { return tags[i] > tags[j] })
+	sort.SliceStable(tags, func(i, j int) bool { return tags[i].Name > tags[j].Name })
 
 	if len(tags) >= latestTagsCount {
 		latestTags := tags[0:latestTagsCount]
-		result = append(result, latestTags...)
+		for _, t := range latestTags {
+			result = append(result, t.Name)
+		}
 	} else {
-		result = append(result, tags...)
+		for _, t := range tags {
+			result = append(result, t.Name)
+		}
 	}
 	return result
 }

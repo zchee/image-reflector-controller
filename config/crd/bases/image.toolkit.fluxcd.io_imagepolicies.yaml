@@ -302,6 +302,21 @@ spec:
                         - desc
                         type: string
                     type: object
+                  newest:
+                    description: Newest set of rules to use for the creation date
+                      ordering of the tags.
+                    properties:
+                      order:
+                        default: desc
+                        description: Order specifies the sorting order of the tags.
+                          Based on the image build creation time, ascending order
+                          would select oldest built tags, and descending order would
+                          select the newly built tags.
+                        enum:
+                        - asc
+                        - desc
+                        type: string
+                    type: object
                   numerical:
                     description: Numerical set of rules to use for numerical ordering
                       of the tags.

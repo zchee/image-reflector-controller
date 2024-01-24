@@ -39,6 +39,7 @@ import (
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
 	"github.com/fluxcd/image-reflector-controller/internal/database"
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 	// +kubebuilder:scaffold:imports
 )
@@ -92,24 +93,24 @@ func TestImageRepositoryReconciler_fetchImageTags(t *testing.T) {
 	defer registryServer.Close()
 	tests := []struct {
 		name          string
-		versions      []string
-		wantVersions  []string
+		versions      []policy.Tag
+		wantVersions  []policy.Tag
 		exclusionList []string
 	}{
 		{
 			name:         "fetch image tags",
-			versions:     []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.1.0", "1.1.0-alpha"},
-			wantVersions: []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.1.0", "1.1.0-alpha"},
+			versions:     []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.1.0"}, {Name: "1.1.0-alpha"}},
+			wantVersions: []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.1.0"}, {Name: "1.1.0-alpha"}},
 		},
 		{
 			name:         "fetch image tags - .sig is excluded",
-			versions:     []string{"0.1.0", "0.1.1", "0.1.1.sig", "1.0.0-alpha", "1.0.0", "1.0.0.sig"},
-			wantVersions: []string{"0.1.0", "0.1.1", "1.0.0-alpha", "1.0.0"},
+			versions:     []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.1.1.sig"}, {Name: "1.0.0-alpha"}, {Name: "1.0.0"}, {Name: "1.0.0.sig"}},
+			wantVersions: []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "1.0.0-alpha"}, {Name: "1.0.0"}},
 		},
 		{
 			name:          "fetch image tags - tags in exclusionList are excluded",
-			versions:      []string{"0.1.0", "0.1.1-alpha", "0.1.1", "0.1.1.sig", "1.0.0-alpha", "1.0.0"},
-			wantVersions:  []string{"0.1.0", "0.1.1", "0.1.1.sig", "1.0.0"},
+			versions:      []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1-alpha"}, {Name: "0.1.1"}, {Name: "0.1.1.sig"}, {Name: "1.0.0-alpha"}, {Name: "1.0.0"}},
+			wantVersions:  []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.1.1.sig"}, {Name: "1.0.0"}},
 			exclusionList: []string{"^.*\\-alpha$"},
 		},
 	}
@@ -209,7 +210,7 @@ func TestImageRepositoryReconciler_reconcileAtAnnotation(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
-	imgRepo, err := test.LoadImages(registryServer, "test-annot-"+randStringRunes(5), []string{"1.0.0"})
+	imgRepo, err := test.LoadImages(registryServer, "test-annot-"+randStringRunes(5), []policy.Tag{{Name: "1.0.0"}})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	repo := imagev1.ImageRepository{
@@ -288,7 +289,7 @@ func TestImageRepositoryReconciler_authRegistry(t *testing.T) {
 		g.Expect(testEnv.Delete(context.Background(), secret)).To(Succeed())
 	}()
 
-	versions := []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"}
+	versions := []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}}
 	imgRepo, err := test.LoadImages(registryServer, "test-authn-"+randStringRunes(5),
 		versions, remote.WithAuth(&authn.Basic{
 			Username: username,
@@ -339,7 +340,7 @@ func TestImageRepositoryReconciler_imageAttribute_schemePrefix(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
-	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []string{"1.0.0"})
+	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []policy.Tag{{Name: "1.0.0"}})
 	g.Expect(err).ToNot(HaveOccurred())
 	imgRepo = "https://" + imgRepo
 
@@ -384,7 +385,7 @@ func TestImageRepositoryReconciler_imageAttribute_withTag(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
-	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []string{"1.0.0"})
+	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []policy.Tag{{Name: "1.0.0"}})
 	g.Expect(err).ToNot(HaveOccurred())
 	imgRepo = imgRepo + ":1.0.0"
 
@@ -429,7 +430,7 @@ func TestImageRepositoryReconciler_imageAttribute_hostPort(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
-	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []string{"1.0.0"})
+	imgRepo, err := test.LoadImages(registryServer, "test-fetch", []policy.Tag{{Name: "1.0.0"}})
 	g.Expect(err).ToNot(HaveOccurred())
 	imgRepo = strings.ReplaceAll(imgRepo, "127.0.0.1", "localhost")
 
@@ -504,7 +505,7 @@ func TestImageRepositoryReconciler_authRegistryWithServiceAccount(t *testing.T) 
 		g.Expect(testEnv.Delete(context.Background(), serviceAccount)).To(Succeed())
 	}()
 
-	versions := []string{"0.1.0", "0.1.1", "0.2.0", "1.0.0", "1.0.1", "1.0.2", "1.1.0-alpha"}
+	versions := []policy.Tag{{Name: "0.1.0"}, {Name: "0.1.1"}, {Name: "0.2.0"}, {Name: "1.0.0"}, {Name: "1.0.1"}, {Name: "1.0.2"}, {Name: "1.1.0-alpha"}}
 	imgRepo, err := test.LoadImages(registryServer, "test-authn-"+randStringRunes(5),
 		versions, remote.WithAuth(&authn.Basic{
 			Username: username,

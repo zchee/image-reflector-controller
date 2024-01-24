@@ -23,6 +23,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	. "github.com/onsi/gomega"
+
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 )
 
 func TestRegistryHandler(t *testing.T) {
@@ -31,14 +33,18 @@ func TestRegistryHandler(t *testing.T) {
 	srv := NewRegistryServer()
 	defer srv.Close()
 
-	uploadedTags := []string{"tag1", "tag2"}
+	uploadedTags := []policy.Tag{{Name: "tag1"}, {Name: "tag2"}}
 	repoString, err := LoadImages(srv, "testimage", uploadedTags)
 	g.Expect(err).ToNot(HaveOccurred())
 	repo, _ := name.NewRepository(repoString)
 
+	wantuploadedTags := make([]string, len(uploadedTags))
+	for i, t := range uploadedTags {
+		wantuploadedTags[i] = t.Name
+	}
 	tags, err := remote.List(repo)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(tags).To(Equal(uploadedTags))
+	g.Expect(tags).To(Equal(wantuploadedTags))
 }
 
 func TestAuthenticationHandler(t *testing.T) {

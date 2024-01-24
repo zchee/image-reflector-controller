@@ -57,6 +57,9 @@ type ImagePolicyChoice struct {
 	// Numerical set of rules to use for numerical ordering of the tags.
 	// +optional
 	Numerical *NumericalPolicy `json:"numerical,omitempty"`
+	// Newest set of rules to use for the creation date ordering of the tags.
+	// +optional
+	Newest *NewestPolicy `json:"newest,omitempty"`
 }
 
 // SemVerPolicy specifies a semantic version policy.
@@ -84,6 +87,17 @@ type NumericalPolicy struct {
 	// from 0 to 9 as tags, ascending order would select 9, and descending order
 	// would select 0.
 	// +kubebuilder:default:="asc"
+	// +kubebuilder:validation:Enum=asc;desc
+	// +optional
+	Order string `json:"order,omitempty"`
+}
+
+// NewestPolicy specifies a creation date ordering policy.
+type NewestPolicy struct {
+	// Order specifies the sorting order of the tags. Based on the image build
+	// creation time, ascending order would select oldest built tags, and descending order
+	// would select the newly built tags.
+	// +kubebuilder:default:="desc"
 	// +kubebuilder:validation:Enum=asc;desc
 	// +optional
 	Order string `json:"order,omitempty"`

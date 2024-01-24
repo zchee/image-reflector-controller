@@ -20,6 +20,8 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger/v3"
+
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 )
 
 const tagsPrefix = "tags"
@@ -40,8 +42,8 @@ func NewBadgerDatabase(db *badger.DB) *BadgerDatabase {
 // Tags implements the DatabaseReader interface, fetching the tags for the repo.
 //
 // If the repo does not exist, an empty set of tags is returned.
-func (a *BadgerDatabase) Tags(repo string) ([]string, error) {
-	var tags []string
+func (a *BadgerDatabase) Tags(repo string) ([]policy.Tag, error) {
+	var tags []policy.Tag
 	err := a.db.View(func(txn *badger.Txn) error {
 		var err error
 		tags, err = getOrEmpty(txn, repo)
@@ -54,7 +56,7 @@ func (a *BadgerDatabase) Tags(repo string) ([]string, error) {
 // the repo.
 //
 // It overwrites existing tag sets for the provided repo.
-func (a *BadgerDatabase) SetTags(repo string, tags []string) error {
+func (a *BadgerDatabase) SetTags(repo string, tags []policy.Tag) error {
 	b, err := marshal(tags)
 	if err != nil {
 		return err
@@ -69,15 +71,15 @@ func keyForRepo(prefix, repo string) []byte {
 	return []byte(fmt.Sprintf("%s:%s", prefix, repo))
 }
 
-func getOrEmpty(txn *badger.Txn, repo string) ([]string, error) {
+func getOrEmpty(txn *badger.Txn, repo string) ([]policy.Tag, error) {
 	item, err := txn.Get(keyForRepo(tagsPrefix, repo))
 	if err == badger.ErrKeyNotFound {
-		return []string{}, nil
+		return []policy.Tag{}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var tags []string
+	var tags []policy.Tag
 	err = item.Value(func(val []byte) error {
 		tags, err = unmarshal(val)
 		return err
@@ -85,12 +87,12 @@ func getOrEmpty(txn *badger.Txn, repo string) ([]string, error) {
 	return tags, err
 }
 
-func marshal(t []string) ([]byte, error) {
+func marshal(t []policy.Tag) ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func unmarshal(b []byte) ([]string, error) {
-	var tags []string
+func unmarshal(b []byte) ([]policy.Tag, error) {
+	var tags []policy.Tag
 	if err := json.Unmarshal(b, &tags); err != nil {
 		return nil, err
 	}

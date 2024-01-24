@@ -43,19 +43,20 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 
 	imagev1 "github.com/fluxcd/image-reflector-controller/api/v1beta2"
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
 	"github.com/fluxcd/image-reflector-controller/internal/secret"
 	"github.com/fluxcd/image-reflector-controller/internal/test"
 )
 
 // mockDatabase mocks the image repository database.
 type mockDatabase struct {
-	TagData    []string
+	TagData    []policy.Tag
 	ReadError  error
 	WriteError error
 }
 
 // SetTags implements the DatabaseWriter interface of the Database.
-func (db *mockDatabase) SetTags(repo string, tags []string) error {
+func (db *mockDatabase) SetTags(repo string, tags []policy.Tag) error {
 	if db.WriteError != nil {
 		return db.WriteError
 	}
@@ -64,7 +65,7 @@ func (db *mockDatabase) SetTags(repo string, tags []string) error {
 }
 
 // Tags implements the DatabaseReader interface of the Database.
-func (db mockDatabase) Tags(repo string) ([]string, error) {
+func (db mockDatabase) Tags(repo string) ([]policy.Tag, error) {
 	if db.ReadError != nil {
 		return nil, db.ReadError
 	}
@@ -384,7 +385,7 @@ func TestImageRepositoryReconciler_shouldScan(t *testing.T) {
 					ScanTime: metav1.NewTime(reconcileTime.Add(-time.Second * 30)),
 				}
 			},
-			db:           &mockDatabase{TagData: []string{"foo"}},
+			db:           &mockDatabase{TagData: []policy.Tag{{Name: "foo"}}},
 			wantScan:     false,
 			wantNextScan: time.Second * 30,
 		},
@@ -399,7 +400,7 @@ func TestImageRepositoryReconciler_shouldScan(t *testing.T) {
 					ScanTime: metav1.NewTime(reconcileTime.Add(-time.Second * 30)),
 				}
 			},
-			db:           &mockDatabase{TagData: []string{"foo"}},
+			db:           &mockDatabase{TagData: []policy.Tag{{Name: "foo"}}},
 			wantScan:     true,
 			wantNextScan: time.Minute,
 			wantReason:   scanReasonNewImageName,
@@ -415,7 +416,7 @@ func TestImageRepositoryReconciler_shouldScan(t *testing.T) {
 					ScanTime: metav1.NewTime(reconcileTime.Add(-time.Second * 30)),
 				}
 			},
-			db:           &mockDatabase{TagData: []string{"foo"}},
+			db:           &mockDatabase{TagData: []policy.Tag{{Name: "foo"}}},
 			wantScan:     true,
 			wantNextScan: time.Minute,
 			wantReason:   scanReasonUpdatedExclusionList,
@@ -444,7 +445,7 @@ func TestImageRepositoryReconciler_shouldScan(t *testing.T) {
 					ScanTime: metav1.NewTime(reconcileTime.Add(-time.Second * 30)),
 				}
 			},
-			db:           &mockDatabase{TagData: []string{"foo"}, ReadError: errors.New("fail")},
+			db:           &mockDatabase{TagData: []policy.Tag{{Name: "foo"}}, ReadError: errors.New("fail")},
 			wantErr:      true,
 			wantScan:     false,
 			wantNextScan: time.Minute,
@@ -458,7 +459,7 @@ func TestImageRepositoryReconciler_shouldScan(t *testing.T) {
 					ScanTime: metav1.NewTime(reconcileTime.Add(-time.Minute * 2)),
 				}
 			},
-			db:           &mockDatabase{TagData: []string{"foo"}},
+			db:           &mockDatabase{TagData: []policy.Tag{{Name: "foo"}}},
 			wantScan:     true,
 			wantNextScan: time.Minute,
 			wantReason:   scanReasonInterval,
@@ -498,69 +499,127 @@ func TestImageRepositoryReconciler_scan(t *testing.T) {
 	registryServer := test.NewRegistryServer()
 	defer registryServer.Close()
 
+	dummyCreated := metav1.Date(2024, 01, 27, 03, 07, 0, 0, time.UTC)
+
 	tests := []struct {
-		name           string
-		tags           []string
-		exclusionList  []string
-		annotation     string
-		db             *mockDatabase
-		wantErr        bool
-		wantTags       []string
-		wantLatestTags []string
+		name          string
+		tags          []policy.Tag
+		exclusionList []string
+		annotation    string
+		db            *mockDatabase
+		wantErr       bool
+		wantTags      []policy.Tag
 	}{
 		{
 			name:    "no tags",
 			wantErr: true,
 		},
 		{
-			name:           "simple tags",
-			tags:           []string{"a", "b", "c", "d"},
-			db:             &mockDatabase{},
-			wantTags:       []string{"a", "b", "c", "d"},
-			wantLatestTags: []string{"d", "c", "b", "a"},
+			name: "simple tags",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
+			db: &mockDatabase{},
+			wantTags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
 		},
 		{
-			name:           "simple tags, 10+",
-			tags:           []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
-			db:             &mockDatabase{},
-			wantTags:       []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
-			wantLatestTags: []string{"k", "j", "i", "h, g, f, e, d, c, b"},
+			name: "simple tags, 10+",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+				{Name: "e", Created: dummyCreated.Add(5 * time.Hour)},
+				{Name: "f", Created: dummyCreated.Add(6 * time.Hour)},
+				{Name: "g", Created: dummyCreated.Add(7 * time.Hour)},
+				{Name: "h", Created: dummyCreated.Add(8 * time.Hour)},
+				{Name: "i", Created: dummyCreated.Add(9 * time.Hour)},
+				{Name: "j", Created: dummyCreated.Add(10 * time.Hour)},
+				{Name: "k", Created: dummyCreated.Add(11 * time.Hour)},
+			},
+			db: &mockDatabase{},
+			wantTags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+				{Name: "e", Created: dummyCreated.Add(5 * time.Hour)},
+				{Name: "f", Created: dummyCreated.Add(6 * time.Hour)},
+				{Name: "g", Created: dummyCreated.Add(7 * time.Hour)},
+				{Name: "h", Created: dummyCreated.Add(8 * time.Hour)},
+				{Name: "i", Created: dummyCreated.Add(9 * time.Hour)},
+				{Name: "j", Created: dummyCreated.Add(10 * time.Hour)},
+				{Name: "k", Created: dummyCreated.Add(11 * time.Hour)},
+			},
 		},
 		{
-			name:           "with single exclusion pattern",
-			tags:           []string{"a", "b", "c", "d"},
-			exclusionList:  []string{"c"},
-			db:             &mockDatabase{},
-			wantTags:       []string{"a", "b", "d"},
-			wantLatestTags: []string{"d", "b", "a"},
+			name: "with single exclusion pattern",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
+			exclusionList: []string{"c"},
+			db:            &mockDatabase{},
+			wantTags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
 		},
 		{
-			name:           "with multiple exclusion pattern",
-			tags:           []string{"a", "b", "c", "d"},
-			exclusionList:  []string{"c", "a"},
-			db:             &mockDatabase{},
-			wantTags:       []string{"b", "d"},
-			wantLatestTags: []string{"d", "b"},
+			name: "with multiple exclusion pattern",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "c", Created: dummyCreated.Add(3 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
+			exclusionList: []string{"c", "a"},
+			db:            &mockDatabase{},
+			wantTags: []policy.Tag{
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+				{Name: "d", Created: dummyCreated.Add(4 * time.Hour)},
+			},
 		},
 		{
-			name:          "bad exclusion pattern",
-			tags:          []string{"a"}, // Ensure repo isn't empty to prevent 404.
+			name: "bad exclusion pattern",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)}, // Ensure repo isn't empty to prevent 404.
+			},
 			exclusionList: []string{"[="},
 			wantErr:       true,
 		},
 		{
-			name:    "db write fails",
-			tags:    []string{"a", "b"},
+			name: "db write fails",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+			},
 			db:      &mockDatabase{WriteError: errors.New("fail")},
 			wantErr: true,
 		},
 		{
-			name:           "with reconcile annotation",
-			tags:           []string{"a", "b"},
-			annotation:     "foo",
-			db:             &mockDatabase{},
-			wantTags:       []string{"a", "b"},
-			wantLatestTags: []string{"b", "a"},
+			name: "with reconcile annotation",
+			tags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+			},
+			annotation: "foo",
+			db:         &mockDatabase{},
+			wantTags: []policy.Tag{
+				{Name: "a", Created: dummyCreated.Add(1 * time.Hour)},
+				{Name: "b", Created: dummyCreated.Add(2 * time.Hour)},
+			},
 		},
 	}
 
@@ -610,7 +669,7 @@ func TestImageRepositoryReconciler_scan(t *testing.T) {
 func TestGetLatestTags(t *testing.T) {
 	tests := []struct {
 		name           string
-		tags           []string
+		tags           []policy.Tag
 		wantLatestTags []string
 	}{
 		{
@@ -619,37 +678,37 @@ func TestGetLatestTags(t *testing.T) {
 		},
 		{
 			name:           "few semver tags",
-			tags:           []string{"1.0.0", "0.0.8", "1.2.5", "3.0.1", "1.0.1"},
+			tags:           []policy.Tag{{Name: "1.0.0"}, {Name: "0.0.8"}, {Name: "1.2.5"}, {Name: "3.0.1"}, {Name: "1.0.1"}},
 			wantLatestTags: []string{"3.0.1", "1.2.5", "1.0.1", "1.0.0", "0.0.8"},
 		},
 		{
 			name:           "10 semver tags",
-			tags:           []string{"1.0.0", "0.0.8", "1.2.5", "3.0.1", "1.0.1", "5.1.1", "4.1.0", "4.5.0", "4.0.3", "2.2.2"},
+			tags:           []policy.Tag{{Name: "1.0.0"}, {Name: "0.0.8"}, {Name: "1.2.5"}, {Name: "3.0.1"}, {Name: "1.0.1"}, {Name: "5.1.1"}, {Name: "4.1.0"}, {Name: "4.5.0"}, {Name: "4.0.3"}, {Name: "2.2.2"}},
 			wantLatestTags: []string{"5.1.1", "4.5.0", "4.1.0", "4.0.3", "3.0.1", "2.2.2", "1.2.5", "1.0.1", "1.0.0", "0.0.8"},
 		},
 		{
 			name:           "10+ semver tags",
-			tags:           []string{"1.0.0", "0.0.8", "1.2.5", "3.0.1", "1.0.1", "5.1.1", "4.1.0", "4.5.0", "4.0.3", "2.2.2", "0.5.1", "0.1.0"},
+			tags:           []policy.Tag{{Name: "1.0.0"}, {Name: "0.0.8"}, {Name: "1.2.5"}, {Name: "3.0.1"}, {Name: "1.0.1"}, {Name: "5.1.1"}, {Name: "4.1.0"}, {Name: "4.5.0"}, {Name: "4.0.3"}, {Name: "2.2.2"}, {Name: "0.5.1"}, {Name: "0.1.0"}},
 			wantLatestTags: []string{"5.1.1", "4.5.0", "4.1.0", "4.0.3", "3.0.1", "2.2.2", "1.2.5", "1.0.1", "1.0.0", "0.5.1"},
 		},
 		{
 			name:           "few numerical tags",
-			tags:           []string{"-62", "-88", "73", "72", "15"},
+			tags:           []policy.Tag{{Name: "-62"}, {Name: "-88"}, {Name: "73"}, {Name: "72"}, {Name: "15"}},
 			wantLatestTags: []string{"73", "72", "15", "-88", "-62"},
 		},
 		{
 			name:           "few numerical tags",
-			tags:           []string{"-62", "-88", "73", "72", "15", "16", "15", "29", "-33", "-91", "100", "101"},
+			tags:           []policy.Tag{{Name: "-62"}, {Name: "-88"}, {Name: "73"}, {Name: "72"}, {Name: "15"}, {Name: "16"}, {Name: "15"}, {Name: "29"}, {Name: "-33"}, {Name: "-91"}, {Name: "100"}, {Name: "101"}},
 			wantLatestTags: []string{"73", "72", "29", "16", "15", "15", "101", "100", "-91", "-88"},
 		},
 		{
 			name:           "few word tags",
-			tags:           []string{"aaa", "bbb", "ccc"},
+			tags:           []policy.Tag{{Name: "aaa"}, {Name: "bbb"}, {Name: "ccc"}},
 			wantLatestTags: []string{"ccc", "bbb", "aaa"},
 		},
 		{
 			name:           "few word tags",
-			tags:           []string{"aaa", "bbb", "ccc", "ddd", "eee", "fff", "ggg", "hhh", "iii", "jjj", "kkk", "lll"},
+			tags:           []policy.Tag{{Name: "aaa"}, {Name: "bbb"}, {Name: "ccc"}, {Name: "ddd"}, {Name: "eee"}, {Name: "fff"}, {Name: "ggg"}, {Name: "hhh"}, {Name: "iii"}, {Name: "jjj"}, {Name: "kkk"}, {Name: "lll"}},
 			wantLatestTags: []string{"lll", "kkk", "jjj", "iii", "hhh", "ggg", "fff", "eee", "ddd", "ccc"},
 		},
 	}
@@ -719,29 +778,113 @@ func Test_parseImageReference(t *testing.T) {
 }
 
 func TestFilterOutTags(t *testing.T) {
+	dummyCreated := time.Date(2024, 01, 27, 03, 07, 0, 0, time.UTC)
+
 	tests := []struct {
 		name     string
-		tags     []string
+		tags     []policy.Tag
 		patterns []string
 		wantErr  bool
-		wantTags []string
+		wantTags []policy.Tag
 	}{
 		{
-			name:     "no pattern",
-			tags:     []string{"a", "b", "c", "d"},
-			wantTags: []string{"a", "b", "c", "d"},
+			name: "no pattern",
+			tags: []policy.Tag{
+				{
+					Name:    "a",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "b",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "c",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "d",
+					Created: dummyCreated,
+				},
+			},
+			wantTags: []policy.Tag{
+				{
+					Name:    "a",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "b",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "c",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "d",
+					Created: dummyCreated,
+				},
+			},
 		},
 		{
-			name:     "single patterns",
-			tags:     []string{"a", "b", "c", "d"},
+			name: "single patterns",
+			tags: []policy.Tag{
+				{
+					Name:    "a",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "b",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "c",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "d",
+					Created: dummyCreated,
+				},
+			},
 			patterns: []string{"[abc]"},
-			wantTags: []string{"d"},
+			wantTags: []policy.Tag{
+				{
+					Name:    "d",
+					Created: dummyCreated,
+				},
+			},
 		},
 		{
-			name:     "multiple patterns",
-			tags:     []string{"a", "b", "c", "d"},
+			name: "multiple patterns",
+			tags: []policy.Tag{
+				{
+					Name:    "a",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "b",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "c",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "d",
+					Created: dummyCreated,
+				},
+			},
 			patterns: []string{"[a]", "[d]"},
-			wantTags: []string{"b", "c"},
+			wantTags: []policy.Tag{
+				{
+					Name:    "b",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "c",
+					Created: dummyCreated,
+				},
+			},
 		},
 		{
 			name:     "invalid pattern",
@@ -749,16 +892,84 @@ func TestFilterOutTags(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:     "version tags",
-			tags:     []string{"0.1.0", "0.2.0", "0.2.-alpha", "0.3.0", "0.4.0", "0.4.0.sig"},
+			name: "version tags",
+			tags: []policy.Tag{
+				{
+					Name:    "0.1.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.2.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.2.-alpha",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.3.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.4.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.4.0.sig",
+					Created: dummyCreated,
+				},
+			},
 			patterns: []string{"^.*\\-alpha$", "^.*\\.sig$"},
-			wantTags: []string{"0.1.0", "0.2.0", "0.3.0", "0.4.0"},
+			wantTags: []policy.Tag{
+				{
+					Name:    "0.1.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.2.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.3.0",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "0.4.0",
+					Created: dummyCreated,
+				},
+			},
 		},
 		{
-			name:     "multiple matches in single pattern",
-			tags:     []string{"aaa", "bbb", "ccc", "ddd"},
+			name: "multiple matches in single pattern",
+			tags: []policy.Tag{
+				{
+					Name:    "aaa",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "bbb",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "ccc",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "ddd",
+					Created: dummyCreated,
+				},
+			},
 			patterns: []string{"aaa|ccc"},
-			wantTags: []string{"bbb", "ddd"},
+			wantTags: []policy.Tag{
+				{
+					Name:    "bbb",
+					Created: dummyCreated,
+				},
+				{
+					Name:    "ddd",
+					Created: dummyCreated,
+				},
+			},
 		},
 	}
 

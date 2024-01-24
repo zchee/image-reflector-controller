@@ -16,9 +16,13 @@ limitations under the License.
 
 package controller
 
+import (
+	"github.com/fluxcd/image-reflector-controller/internal/policy"
+)
+
 // DatabaseWriter implementations record the tags for an image repository.
 type DatabaseWriter interface {
-	SetTags(repo string, tags []string) error
+	SetTags(repo string, tags []policy.Tag) error
 }
 
 // DatabaseReader implementations get the stored set of tags for an image
@@ -27,5 +31,5 @@ type DatabaseWriter interface {
 // If no tags are availble for the repo, then implementations should return an
 // empty set of tags.
 type DatabaseReader interface {
-	Tags(repo string) ([]string, error)
+	Tags(repo string) ([]policy.Tag, error)
 }
